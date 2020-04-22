@@ -1,4 +1,4 @@
-From c1238641b39a1ab3d57dad29ad8a1bb2a6ea19cc Mon Sep 17 00:00:00 2001
+From e3f355f4767a1361cd3cf6335461428ada311951 Mon Sep 17 00:00:00 2001
 From: Troy Frew <fuzzy_bot@arenaga.me>
 Date: Tue, 15 Nov 2016 10:31:04 -0500
 Subject: [PATCH] Travertine 1.7.x Protocol Patch
@@ -1261,10 +1261,10 @@ index a5555f6a..415a4bcd 100644
      public void write(ByteBuf buf, ProtocolConstants.Direction direction, int protocolVersion)
      {
 diff --git a/proxy/src/main/java/net/md_5/bungee/BungeeCord.java b/proxy/src/main/java/net/md_5/bungee/BungeeCord.java
-index d1296368..c3c9f249 100644
+index 6d0d59c6..640b2c10 100644
 --- a/proxy/src/main/java/net/md_5/bungee/BungeeCord.java
 +++ b/proxy/src/main/java/net/md_5/bungee/BungeeCord.java
-@@ -169,6 +169,14 @@ public class BungeeCord extends ProxyServer
+@@ -173,6 +173,14 @@ public class BungeeCord extends ProxyServer
              .registerTypeAdapter( SelectorComponent.class, new SelectorComponentSerializer() )
              .registerTypeAdapter( ServerPing.PlayerInfo.class, new PlayerInfoSerializer() )
              .registerTypeAdapter( Favicon.class, Favicon.getFaviconTypeAdapter() ).create();
@@ -1355,7 +1355,7 @@ index 491cf1a1..299a216c 100644
      }
  }
 diff --git a/proxy/src/main/java/net/md_5/bungee/ServerConnector.java b/proxy/src/main/java/net/md_5/bungee/ServerConnector.java
-index bced2ca2..616d05a8 100644
+index a65e149f..36f8f1d3 100644
 --- a/proxy/src/main/java/net/md_5/bungee/ServerConnector.java
 +++ b/proxy/src/main/java/net/md_5/bungee/ServerConnector.java
 @@ -6,6 +6,7 @@ import io.netty.buffer.ByteBufAllocator;
@@ -1366,7 +1366,7 @@ index bced2ca2..616d05a8 100644
  import java.util.Queue;
  import java.util.Set;
  import java.util.UUID;
-@@ -331,10 +332,20 @@ public class ServerConnector extends PacketHandler
+@@ -336,10 +337,20 @@ public class ServerConnector extends PacketHandler
  
              user.unsafe().sendPacket( modLogin );
  
@@ -1391,7 +1391,7 @@ index bced2ca2..616d05a8 100644
  
              user.setDimension( login.getDimension() );
          } else
-@@ -353,7 +364,7 @@ public class ServerConnector extends PacketHandler
+@@ -358,7 +369,7 @@ public class ServerConnector extends PacketHandler
              if ( !user.isDisableEntityMetadataRewrite() ) { // Waterfall
              for ( Objective objective : serverScoreboard.getObjectives() )
              {
@@ -1400,7 +1400,7 @@ index bced2ca2..616d05a8 100644
              }
              for ( Score score : serverScoreboard.getScores() )
              {
-@@ -555,6 +566,14 @@ public class ServerConnector extends PacketHandler
+@@ -560,6 +571,14 @@ public class ServerConnector extends PacketHandler
              {
                  this.handshakeHandler.handle( pluginMessage );
  
@@ -2006,5 +2006,5 @@ index daf12f74..e33861ab 100644
  
      @Override
 -- 
-2.17.2 (Apple Git-113)
+2.23.0.windows.1
 
