@@ -1,4 +1,4 @@
-From e3f355f4767a1361cd3cf6335461428ada311951 Mon Sep 17 00:00:00 2001
+From cc26851e1a281f66975afad7acbc48f44eb6d83c Mon Sep 17 00:00:00 2001
 From: Troy Frew <fuzzy_bot@arenaga.me>
 Date: Tue, 15 Nov 2016 10:31:04 -0500
 Subject: [PATCH] Travertine 1.7.x Protocol Patch
@@ -463,29 +463,29 @@ index a90e7d0b..be0494b1 100644
  
              java.util.function.Supplier<? extends DefinedPacket> constructor = protocolData.packetConstructors[id]; // Waterfall - speed up packet construction
 diff --git a/protocol/src/main/java/net/md_5/bungee/protocol/ProtocolConstants.java b/protocol/src/main/java/net/md_5/bungee/protocol/ProtocolConstants.java
-index df91670c..eff27698 100644
+index 690f1aaf..1257f5d4 100644
 --- a/protocol/src/main/java/net/md_5/bungee/protocol/ProtocolConstants.java
 +++ b/protocol/src/main/java/net/md_5/bungee/protocol/ProtocolConstants.java
-@@ -18,6 +18,8 @@ public class ProtocolConstants
-     public static final int MINECRAFT_PE_1_14_HOTFIX = 390 - PE_PROTOCOL_OFFSET;
+@@ -19,6 +19,8 @@ public class ProtocolConstants
      public static final int MINECRAFT_PE_1_15 = 392 - PE_PROTOCOL_OFFSET;
+     public static final int MINECRAFT_PE_1_16 = 407 - PE_PROTOCOL_OFFSET;
      // Waterdog end
 +    public static final int MINECRAFT_1_7_2 = 4;
 +    public static final int MINECRAFT_1_7_6 = 5;
      public static final int MINECRAFT_1_8 = 47;
      public static final int MINECRAFT_1_9 = 107;
      public static final int MINECRAFT_1_9_1 = 108;
-@@ -51,6 +53,7 @@ public class ProtocolConstants
-             "PE-1.14.x",
+@@ -53,6 +55,7 @@ public class ProtocolConstants
              "PE-1.15.x",
+             "PE-1.16.x",
              // Waterdog end
 +            "1.7.x",
              "1.8.x",
              "1.9.x",
              "1.10.x",
-@@ -72,6 +75,8 @@ public class ProtocolConstants
-             ProtocolConstants.MINECRAFT_PE_1_14_HOTFIX,
+@@ -75,6 +78,8 @@ public class ProtocolConstants
              ProtocolConstants.MINECRAFT_PE_1_15,
+             ProtocolConstants.MINECRAFT_PE_1_16,
              // Waterdog end
 +            ProtocolConstants.MINECRAFT_1_7_2,
 +            ProtocolConstants.MINECRAFT_1_7_6,
@@ -1416,7 +1416,7 @@ index a65e149f..36f8f1d3 100644
                  throw CancelSendSignal.INSTANCE;
              }
 diff --git a/proxy/src/main/java/net/md_5/bungee/UserConnection.java b/proxy/src/main/java/net/md_5/bungee/UserConnection.java
-index b5589396..306af9b9 100644
+index 0754bb52..00fa0ed2 100644
 --- a/proxy/src/main/java/net/md_5/bungee/UserConnection.java
 +++ b/proxy/src/main/java/net/md_5/bungee/UserConnection.java
 @@ -212,6 +212,7 @@ public final class UserConnection implements ProxiedPlayer
@@ -1427,7 +1427,7 @@ index b5589396..306af9b9 100644
          displayName = name;
      }
  
-@@ -537,7 +538,8 @@ public final class UserConnection implements ProxiedPlayer
+@@ -538,7 +539,8 @@ public final class UserConnection implements ProxiedPlayer
          // transform score components
          message = ChatComponentTransformer.getInstance().transform( this, message );
  
@@ -1437,7 +1437,7 @@ index b5589396..306af9b9 100644
          {
              // Versions older than 1.11 cannot send the Action bar with the new JSON formattings
              // Fix by converting to a legacy message, see https://bugs.mojang.com/browse/MC-119145
-@@ -563,7 +565,7 @@ public final class UserConnection implements ProxiedPlayer
+@@ -564,7 +566,7 @@ public final class UserConnection implements ProxiedPlayer
          message = ChatComponentTransformer.getInstance().transform( this, message )[0];
  
          // Action bar doesn't display the new JSON formattings, legacy works - send it using this for now
@@ -1446,7 +1446,7 @@ index b5589396..306af9b9 100644
          {
              sendMessage( position, ComponentSerializer.toString( new TextComponent( BaseComponent.toLegacyText( message ) ) ) );
          } else
-@@ -763,6 +765,7 @@ public final class UserConnection implements ProxiedPlayer
+@@ -764,6 +766,7 @@ public final class UserConnection implements ProxiedPlayer
      @Override
      public void setTabHeader(BaseComponent header, BaseComponent footer)
      {
@@ -1454,7 +1454,7 @@ index b5589396..306af9b9 100644
          header = ChatComponentTransformer.getInstance().transform( this, header )[0];
          footer = ChatComponentTransformer.getInstance().transform( this, footer )[0];
  
-@@ -775,6 +778,7 @@ public final class UserConnection implements ProxiedPlayer
+@@ -776,6 +779,7 @@ public final class UserConnection implements ProxiedPlayer
      @Override
      public void setTabHeader(BaseComponent[] header, BaseComponent[] footer)
      {
@@ -1462,7 +1462,7 @@ index b5589396..306af9b9 100644
          header = ChatComponentTransformer.getInstance().transform( this, header );
          footer = ChatComponentTransformer.getInstance().transform( this, footer );
  
-@@ -805,6 +809,7 @@ public final class UserConnection implements ProxiedPlayer
+@@ -806,6 +810,7 @@ public final class UserConnection implements ProxiedPlayer
      public void setCompressionThreshold(int compressionThreshold)
      {
          if (net.md_5.bungee.protocol.ProtocolConstants.isPE(getPendingConnection().getVersion())) return; // Waterdog

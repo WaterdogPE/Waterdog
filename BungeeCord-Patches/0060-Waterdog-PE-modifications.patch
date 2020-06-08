@@ -1,14 +1,14 @@
-From e0560fad943a4d7f123446c7ca749342d6470285 Mon Sep 17 00:00:00 2001
+From 5500d170e7ef80e4e58b942c47b3ddfdad1f673a Mon Sep 17 00:00:00 2001
 From: Colin Godsey <crgodsey@gmail.com>
 Date: Tue, 16 Apr 2019 07:50:25 -0600
 Subject: [PATCH] Waterdog PE (modifications)
 
 
 diff --git a/api/src/main/java/net/md_5/bungee/api/ProxyServer.java b/api/src/main/java/net/md_5/bungee/api/ProxyServer.java
-index a4011335..06855b53 100644
+index a4011335..0752e963 100644
 --- a/api/src/main/java/net/md_5/bungee/api/ProxyServer.java
 +++ b/api/src/main/java/net/md_5/bungee/api/ProxyServer.java
-@@ -221,19 +221,13 @@ public abstract class ProxyServer
+@@ -221,19 +221,17 @@ public abstract class ProxyServer
       * @param restricted whether the server info restricted property will be set
       * @return the constructed instance
       */
@@ -30,6 +30,10 @@ index a4011335..06855b53 100644
 +    public ServerInfo constructServerInfo(String name, SocketAddress address, String motd, boolean restricted) {
 +        return constructServerInfo(name, address, motd, restricted, false, "default");
 +    }
++
++    public ServerInfo constructServerInfo(String name, InetSocketAddress address, String motd, boolean restricted) {
++        return constructServerInfo(name, address, motd, restricted, false, "default");
++    }
 +    // Waterdog end
  
      /**
@@ -37,7 +41,7 @@ index a4011335..06855b53 100644
 @@ -327,4 +321,17 @@ public abstract class ProxyServer
       */
      public abstract Title createTitle();
- 
+
 +    /**
 +     * Creates new realId for client
 +     * @param entityId
@@ -531,10 +535,10 @@ index aa1515f4..a90e7d0b 100644
                      {
                          // This is a new packet, skip it till we reach the next protocol
 diff --git a/protocol/src/main/java/net/md_5/bungee/protocol/ProtocolConstants.java b/protocol/src/main/java/net/md_5/bungee/protocol/ProtocolConstants.java
-index cd987c8a..df91670c 100644
+index cd987c8a..690f1aaf 100644
 --- a/protocol/src/main/java/net/md_5/bungee/protocol/ProtocolConstants.java
 +++ b/protocol/src/main/java/net/md_5/bungee/protocol/ProtocolConstants.java
-@@ -6,6 +6,18 @@ import java.util.List;
+@@ -6,6 +6,19 @@ import java.util.List;
  public class ProtocolConstants
  {
  
@@ -549,11 +553,12 @@ index cd987c8a..df91670c 100644
 +    public static final int MINECRAFT_PE_1_14 = 389 - PE_PROTOCOL_OFFSET;
 +    public static final int MINECRAFT_PE_1_14_HOTFIX = 390 - PE_PROTOCOL_OFFSET;
 +    public static final int MINECRAFT_PE_1_15 = 392 - PE_PROTOCOL_OFFSET;
++    public static final int MINECRAFT_PE_1_16 = 407 - PE_PROTOCOL_OFFSET;
 +    // Waterdog end
      public static final int MINECRAFT_1_8 = 47;
      public static final int MINECRAFT_1_9 = 107;
      public static final int MINECRAFT_1_9_1 = 108;
-@@ -29,6 +41,16 @@ public class ProtocolConstants
+@@ -29,6 +42,17 @@ public class ProtocolConstants
      public static final int MINECRAFT_1_15_1 = 575;
      public static final int MINECRAFT_1_15_2 = 578;
      public static final List<String> SUPPORTED_VERSIONS = Arrays.asList(
@@ -566,11 +571,12 @@ index cd987c8a..df91670c 100644
 +            "PE-1.13.x",
 +            "PE-1.14.x",
 +            "PE-1.15.x",
++            "PE-1.16.x",
 +            // Waterdog end
              "1.8.x",
              "1.9.x",
              "1.10.x",
-@@ -39,6 +61,17 @@ public class ProtocolConstants
+@@ -39,6 +63,18 @@ public class ProtocolConstants
              "1.15.x"
      );
      public static final List<Integer> SUPPORTED_VERSION_IDS = Arrays.asList(
@@ -584,11 +590,12 @@ index cd987c8a..df91670c 100644
 +            ProtocolConstants.MINECRAFT_PE_1_14,
 +            ProtocolConstants.MINECRAFT_PE_1_14_HOTFIX,
 +            ProtocolConstants.MINECRAFT_PE_1_15,
++            ProtocolConstants.MINECRAFT_PE_1_16,
 +            // Waterdog end
              ProtocolConstants.MINECRAFT_1_8,
              ProtocolConstants.MINECRAFT_1_9,
              ProtocolConstants.MINECRAFT_1_9_1,
-@@ -65,14 +98,22 @@ public class ProtocolConstants
+@@ -65,14 +101,22 @@ public class ProtocolConstants
  
      public static final boolean isBeforeOrEq(int before, int other)
      {
@@ -1294,7 +1301,7 @@ index d9497970..3eda0a37 100644
  
          if ( !options.has( "noconsole" ) )
 diff --git a/proxy/src/main/java/net/md_5/bungee/BungeeServerInfo.java b/proxy/src/main/java/net/md_5/bungee/BungeeServerInfo.java
-index 7b002089..10db4ca6 100644
+index 7b002089..ea0f4d5c 100644
 --- a/proxy/src/main/java/net/md_5/bungee/BungeeServerInfo.java
 +++ b/proxy/src/main/java/net/md_5/bungee/BungeeServerInfo.java
 @@ -36,6 +36,7 @@ import net.md_5.bungee.protocol.packet.PluginMessage;
@@ -1305,7 +1312,7 @@ index 7b002089..10db4ca6 100644
  })
  // CHECKSTYLE:ON
  public class BungeeServerInfo implements ServerInfo
-@@ -53,6 +54,22 @@ public class BungeeServerInfo implements ServerInfo
+@@ -53,6 +54,26 @@ public class BungeeServerInfo implements ServerInfo
      @Getter
      private final Queue<DefinedPacket> packetQueue = new LinkedList<>();
  
@@ -1317,6 +1324,10 @@ index 7b002089..10db4ca6 100644
 +        this.restricted = restricted;
 +        this.rakNet = true;
 +        this.transferGroup = "default";
++    }
++
++    public BungeeServerInfo(String name, InetSocketAddress socketAddress, String motd, boolean restricted) {
++        this(name, (SocketAddress)socketAddress, motd, restricted);
 +    }
 +
 +    @Getter
@@ -1444,7 +1455,7 @@ index 35a19224..a65e149f 100644
 +                Integer realId = ProxyServer.getInstance().createConnectionId(peLogin.getEntityId());
 +                if (realId != null) user.setClientEntityId( realId );
 +            }
- 
+
              // Set tab list size, TODO: what shall we do about packet mutability
              Login modLogin = new Login( login.getEntityId(), login.getGameMode(), (byte) login.getDimension(), login.getSeed(), login.getDifficulty(),
                      (byte) user.getPendingConnection().getListener().getTabListSize(), login.getLevelType(), login.getViewDistance(), login.isReducedDebugInfo(), login.isNormalRespawn() );
@@ -1533,7 +1544,7 @@ index 35a19224..a65e149f 100644
              user.getServer().disconnect( "Quitting" );
          }
 diff --git a/proxy/src/main/java/net/md_5/bungee/UserConnection.java b/proxy/src/main/java/net/md_5/bungee/UserConnection.java
-index 7c129221..c87e2f3d 100644
+index 7c129221..adc8db4b 100644
 --- a/proxy/src/main/java/net/md_5/bungee/UserConnection.java
 +++ b/proxy/src/main/java/net/md_5/bungee/UserConnection.java
 @@ -130,6 +130,18 @@ public final class UserConnection implements ProxiedPlayer
@@ -1617,7 +1628,7 @@ index 7c129221..c87e2f3d 100644
              }
          };
          ChannelFutureListener listener = new ChannelFutureListener()
-@@ -378,12 +427,25 @@ public final class UserConnection implements ProxiedPlayer
+@@ -378,12 +427,26 @@ public final class UserConnection implements ProxiedPlayer
                  }
              }
          };
@@ -1639,12 +1650,13 @@ index 7c129221..c87e2f3d 100644
 +                .option(network.ycc.raknet.RakNet.MTU, maxMTU == -1 ? network.ycc.raknet.config.DefaultConfig.DEFAULT_MTU : maxMTU) //some servers hate large frames
 +                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, request.getConnectTimeout())
 +                .remoteAddress(target.getAddress());
++            network.ycc.waterdog.pe.PEPipelineUtils.enableDownstreamScatteredReads(b);
 +        }
 +        // Waterdog end
          // Windows is bugged, multi homed users will just have to live with random connecting IPs
          if ( getPendingConnection().getListener().isSetLocalAddress() && !PlatformDependent.isWindows() && getPendingConnection().getListener().getSocketAddress() instanceof InetSocketAddress )
          {
-@@ -611,7 +673,22 @@ public final class UserConnection implements ProxiedPlayer
+@@ -611,7 +674,22 @@ public final class UserConnection implements ProxiedPlayer
      {
          this.settings = settings;
          this.locale = null;
@@ -1667,7 +1679,7 @@ index 7c129221..c87e2f3d 100644
  
      @Override
      public Locale getLocale()
-@@ -726,6 +803,7 @@ public final class UserConnection implements ProxiedPlayer
+@@ -726,6 +804,7 @@ public final class UserConnection implements ProxiedPlayer
  
      public void setCompressionThreshold(int compressionThreshold)
      {
