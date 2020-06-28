@@ -694,6 +694,10 @@ index 54500dde..00ef6cdc 100644
 +            <id>codemc-repo</id>
 +            <url>https://repo.codemc.org/repository/maven-public</url>
 +        </repository>
++        <repository>
++            <id>alemiz-repo</id>
++            <url>http://jenkins.mizerak.eu/plugin/repository/everything/</url>
++        </repository>
 +    </repositories>
 +    <!-- Waterdog end -->
 +
