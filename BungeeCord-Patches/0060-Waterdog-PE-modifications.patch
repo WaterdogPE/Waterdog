@@ -1,11 +1,11 @@
-From 6e419acfddd7d73c723ced77ea2f3a56aaa6d4df Mon Sep 17 00:00:00 2001
+From ba75536ec367777cde94b7bafd67b47fe0ac406f Mon Sep 17 00:00:00 2001
 From: Colin Godsey <crgodsey@gmail.com>
 Date: Tue, 16 Apr 2019 07:50:25 -0600
 Subject: [PATCH] Waterdog PE (modifications)
 
 
 diff --git a/api/src/main/java/net/md_5/bungee/api/ProxyServer.java b/api/src/main/java/net/md_5/bungee/api/ProxyServer.java
-index a4011335..0752e963 100644
+index a4011335..f62218b0 100644
 --- a/api/src/main/java/net/md_5/bungee/api/ProxyServer.java
 +++ b/api/src/main/java/net/md_5/bungee/api/ProxyServer.java
 @@ -221,19 +221,17 @@ public abstract class ProxyServer
@@ -38,22 +38,14 @@ index a4011335..0752e963 100644
  
      /**
       * Returns the console overlord for this proxy. Being the console, this
-@@ -327,4 +321,17 @@ public abstract class ProxyServer
+@@ -327,4 +325,9 @@ public abstract class ProxyServer
       */
      public abstract Title createTitle();
-
-+    /**
-+     * Creates new realId for client
-+     * @param entityId
-+     * @return
-+     */
-+    public abstract Integer createConnectionId(Integer entityId);
+ 
 +
-+    /**
-+     * Removes realId from map after client logout
-+     * @param realId
-+     */
-+    public abstract void removeConnectionId(Integer realId);
++    public abstract int createClientId(int entityId);
++    public abstract Integer getServerClientId(int clientId);
++    public abstract void removeClientId(int realId);
 +
  }
 diff --git a/api/src/main/java/net/md_5/bungee/api/config/ListenerInfo.java b/api/src/main/java/net/md_5/bungee/api/config/ListenerInfo.java
@@ -1160,21 +1152,41 @@ index dab227a1..12b52465 100644
  
      @Override
 diff --git a/proxy/src/main/java/net/md_5/bungee/BungeeCord.java b/proxy/src/main/java/net/md_5/bungee/BungeeCord.java
-index 25ddd9ff..6d0d59c6 100644
+index 25ddd9ff..5597d322 100644
 --- a/proxy/src/main/java/net/md_5/bungee/BungeeCord.java
 +++ b/proxy/src/main/java/net/md_5/bungee/BungeeCord.java
-@@ -131,6 +131,10 @@ public class BungeeCord extends ProxyServer
+@@ -40,6 +40,7 @@ import java.util.Timer;
+ import java.util.TimerTask;
+ import java.util.UUID;
+ import java.util.concurrent.TimeUnit;
++import java.util.concurrent.atomic.AtomicInteger;
+ import java.util.concurrent.locks.ReadWriteLock;
+ import java.util.concurrent.locks.ReentrantLock;
+ import java.util.concurrent.locks.ReentrantReadWriteLock;
+@@ -131,6 +132,22 @@ public class BungeeCord extends ProxyServer
      private final Map<UUID, UserConnection> connectionsByOfflineUUID = new HashMap<>();
      private final Map<UUID, UserConnection> connectionsByUUID = new HashMap<>();
      private final ReadWriteLock connectionLock = new ReentrantReadWriteLock();
 +    /**
-+     * Connection id pointing to first server id
++     * Server assigns the client its client id. MCPE client does not accept client id changes during one session.
++     * When player changes server and it will have entity with same id as first assigned client id of player some game behaviour wont work correctly.
++     * This is solved by doing simple client id rewrite.
++     * realIdOffset is the lowest client id assigned to player by proxy. Basically it should be bigger than entity count on one server.
++     * Hope 100 000 is enough.
 +     */
-+    private final Map<Integer, Integer> connectionsId = new HashMap<>();
++    public static final int realIdOffset = 100000;
++    /**
++     * Client id allocator
++     */
++    private final AtomicInteger clientIdAllocator = new AtomicInteger(realIdOffset);
++    /**
++     * Map of client ids assigned by proxy pointing to client id assigned by server
++     */
++    private final Map<Integer, Integer> clientIdMap = new HashMap<>();
      /**
       * Lock to protect the shutdown process from being triggered simultaneously
       * from multiple sources.
-@@ -246,6 +250,7 @@ public class BungeeCord extends ProxyServer
+@@ -246,6 +263,7 @@ public class BungeeCord extends ProxyServer
                  logger.info( "Using standard Java compressor." );
              }
          }
@@ -1182,7 +1194,7 @@ index 25ddd9ff..6d0d59c6 100644
      }
  
      /**
-@@ -346,6 +351,7 @@ public class BungeeCord extends ProxyServer
+@@ -346,6 +364,7 @@ public class BungeeCord extends ProxyServer
                      }
                  }
              };
@@ -1190,7 +1202,7 @@ index 25ddd9ff..6d0d59c6 100644
              new ServerBootstrap()
                      .channel( PipelineUtils.getServerChannel( info.getSocketAddress() ) )
                      .option( ChannelOption.SO_REUSEADDR, true ) // TODO: Move this elsewhere!
-@@ -354,8 +360,23 @@ public class BungeeCord extends ProxyServer
+@@ -354,8 +373,23 @@ public class BungeeCord extends ProxyServer
                      .group( bossEventLoopGroup, workerEventLoopGroup )
                      .localAddress( info.getSocketAddress() )
                      .bind().addListener( listener );
@@ -1215,7 +1227,7 @@ index 25ddd9ff..6d0d59c6 100644
              {
                  Preconditions.checkArgument( info.getSocketAddress() instanceof InetSocketAddress, "Can only create query listener on UDP address" );
  
-@@ -673,7 +694,7 @@ public class BungeeCord extends ProxyServer
+@@ -673,7 +707,7 @@ public class BungeeCord extends ProxyServer
  
      public PluginMessage registerChannels(int protocolVersion)
      {
@@ -1224,7 +1236,7 @@ index 25ddd9ff..6d0d59c6 100644
          {
              return new PluginMessage( "minecraft:register", Util.format( Iterables.transform( pluginChannels, PluginMessage.MODERNISE ), "\00" ).getBytes( Charsets.UTF_8 ), false );
          }
-@@ -693,16 +714,18 @@ public class BungeeCord extends ProxyServer
+@@ -693,16 +727,18 @@ public class BungeeCord extends ProxyServer
          return getConfig().getGameVersion(); // Waterfall
      }
  
@@ -1247,39 +1259,34 @@ index 25ddd9ff..6d0d59c6 100644
      }
  
      @Override
-@@ -756,6 +779,7 @@ public class BungeeCord extends ProxyServer
+@@ -756,6 +792,7 @@ public class BungeeCord extends ProxyServer
                  connections.remove( con.getName() );
                  connectionsByUUID.remove( con.getUniqueId() );
                  connectionsByOfflineUUID.remove( con.getPendingConnection().getOfflineId() );
-+                this.removeConnectionId(con.getClientEntityId());
++                this.removeClientId(con.getClientEntityId());
              }
          } finally
          {
-@@ -796,4 +820,26 @@ public class BungeeCord extends ProxyServer
+@@ -796,4 +833,21 @@ public class BungeeCord extends ProxyServer
      {
          return new BungeeTitle();
      }
 +
 +    @Override
-+    public Integer createConnectionId(Integer entityId) {
-+        Integer realId = ((this.connectionsId.size() == 0) ? 1000 : 1000 + this.connectionsId.size());
-+
-+        if (this.connectionsId.containsKey(realId)){
-+            for (int i = 1000; i <= realId; i++){
-+                if (this.connectionsId.containsKey(i)) continue;
-+
-+                realId = i;
-+                break;
-+            }
-+        }
-+
-+        this.connectionsId.put(realId, entityId);
-+        return realId;
++    public int createClientId(int entityId) {
++        int clientId = this.clientIdAllocator.getAndIncrement();
++        this.clientIdMap.put(clientId, entityId);
++        return clientId;
 +    }
 +
 +    @Override
-+    public void removeConnectionId(Integer realId) {
-+        this.connectionsId.remove(realId);
++    public Integer getServerClientId(int clientId) {
++        return this.clientIdMap.getOrDefault(clientId, null);
++    }
++
++    @Override
++    public void removeClientId(int realId) {
++        this.clientIdMap.remove(realId);
 +    }
  }
 diff --git a/proxy/src/main/java/net/md_5/bungee/BungeeCordLauncher.java b/proxy/src/main/java/net/md_5/bungee/BungeeCordLauncher.java
@@ -1342,7 +1349,7 @@ index 7b002089..ea0f4d5c 100644
      public void addPlayer(ProxiedPlayer player)
      {
 diff --git a/proxy/src/main/java/net/md_5/bungee/ServerConnector.java b/proxy/src/main/java/net/md_5/bungee/ServerConnector.java
-index 35a19224..2ca549ae 100644
+index 35a19224..98c9f7f6 100644
 --- a/proxy/src/main/java/net/md_5/bungee/ServerConnector.java
 +++ b/proxy/src/main/java/net/md_5/bungee/ServerConnector.java
 @@ -54,6 +54,8 @@ import net.md_5.bungee.protocol.packet.SetCompression;
@@ -1449,9 +1456,9 @@ index 35a19224..2ca549ae 100644
      public void handle(Login login) throws Exception
      {
 @@ -213,7 +269,10 @@ public class ServerConnector extends PacketHandler
-
+ 
          bungee.getPluginManager().callEvent( event );
-
+ 
 -        ch.write( BungeeCord.getInstance().registerChannels( user.getPendingConnection().getVersion() ) );
 +        if (!(login instanceof network.ycc.waterdog.pe.packet.PELogin)){
 +            ch.write(BungeeCord.getInstance().registerChannels( user.getPendingConnection().getVersion() ));
@@ -1463,7 +1470,7 @@ index 35a19224..2ca549ae 100644
 @@ -223,9 +282,10 @@ public class ServerConnector extends PacketHandler
              }
          }
-
+ 
 -        for ( PluginMessage message : user.getPendingConnection().getRelayMessages() )
 -        {
 -            ch.write( message );
@@ -1472,18 +1479,18 @@ index 35a19224..2ca549ae 100644
 +                ch.write( message );
 +            }
          }
-
+ 
          if (!user.isDisableEntityMetadataRewrite() && user.getSettings() != null )
-@@ -243,11 +299,41 @@ public class ServerConnector extends PacketHandler
+@@ -243,11 +303,41 @@ public class ServerConnector extends PacketHandler
              // Once again, first connection
              user.setClientEntityId( login.getEntityId() );
              user.setServerEntityId( login.getEntityId() );
 +            if (login instanceof network.ycc.waterdog.pe.packet.PELogin){
 +                final network.ycc.waterdog.pe.packet.PELogin peLogin = (network.ycc.waterdog.pe.packet.PELogin) login;
-+                Integer realId = ProxyServer.getInstance().createConnectionId(peLogin.getEntityId());
-+                if (realId != null) user.setClientEntityId( realId );
++                int clientId = ProxyServer.getInstance().createClientId(peLogin.getEntityId());
++                user.setClientEntityId(clientId);
 +            }
-
+ 
              // Set tab list size, TODO: what shall we do about packet mutability
              Login modLogin = new Login( login.getEntityId(), login.getGameMode(), (byte) login.getDimension(), login.getSeed(), login.getDifficulty(),
                      (byte) user.getPendingConnection().getListener().getTabListSize(), login.getLevelType(), login.getViewDistance(), login.isReducedDebugInfo(), login.isNormalRespawn() );
@@ -1516,7 +1523,7 @@ index 35a19224..2ca549ae 100644
              user.unsafe().sendPacket( modLogin );
  
              ByteBuf brand = ByteBufAllocator.DEFAULT.heapBuffer();
-@@ -262,6 +347,13 @@ public class ServerConnector extends PacketHandler
+@@ -262,6 +352,13 @@ public class ServerConnector extends PacketHandler
              user.getTabListHandler().onServerChange();
  
              Scoreboard serverScoreboard = user.getServerSentScoreboard();
@@ -1530,7 +1537,7 @@ index 35a19224..2ca549ae 100644
              if ( !user.isDisableEntityMetadataRewrite() ) { // Waterfall
              for ( Objective objective : serverScoreboard.getObjectives() )
              {
-@@ -328,6 +420,40 @@ public class ServerConnector extends PacketHandler
+@@ -328,6 +425,40 @@ public class ServerConnector extends PacketHandler
              }
              user.setDimension( login.getDimension() );
  
@@ -1580,7 +1587,7 @@ index 7c129221..24302eb6 100644
  import net.md_5.bungee.util.CaseInsensitiveSet;
  import net.md_5.bungee.util.ChatComponentTransformer;
 +import network.ycc.raknet.RakNet;
-
+ 
  @RequiredArgsConstructor
  public final class UserConnection implements ProxiedPlayer
 @@ -130,6 +131,18 @@ public final class UserConnection implements ProxiedPlayer
