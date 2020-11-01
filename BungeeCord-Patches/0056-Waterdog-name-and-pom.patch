@@ -1,4 +1,4 @@
-From ca02e2840ba5596287ffc8bf4b7fa3780e98183d Mon Sep 17 00:00:00 2001
+From 2a03897bbc5d4bbc5a7c96af45caa805bc73020a Mon Sep 17 00:00:00 2001
 From: Colin Godsey <crgodsey@gmail.com>
 Date: Tue, 16 Apr 2019 07:41:38 -0600
 Subject: [PATCH] Waterdog name and pom
@@ -657,7 +657,7 @@ index 4592e2b3..754c17f0 100644
              <scope>compile</scope>
          </dependency>
 diff --git a/proxy/pom.xml b/proxy/pom.xml
-index 54500dde..742d932a 100644
+index 54500dde..bb2b597c 100644
 --- a/proxy/pom.xml
 +++ b/proxy/pom.xml
 @@ -4,18 +4,18 @@
@@ -691,12 +691,12 @@ index 54500dde..742d932a 100644
 +    <!-- Waterdog start -->
 +    <repositories>
 +        <repository>
-+            <id>codemc-repo</id>
-+            <url>https://repo.codemc.org/repository/maven-public</url>
++            <id>waterdogpe-releases</id>
++            <url>https://repo.waterdog.dev/artifactory/releases</url>
 +        </repository>
 +        <repository>
-+            <id>alemiz-repo</id>
-+            <url>http://jenkins.mizerak.eu/plugin/repository/everything/</url>
++            <id>waterdogpe-snapshots</id>
++            <url>https://repo.waterdog.dev/artifactory/snapshots</url>
 +        </repository>
 +    </repositories>
 +    <!-- Waterdog end -->

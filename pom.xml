@@ -10,11 +10,11 @@
 
     <name>Waterdog-Super</name>
     <description>Super project for Waterdog.</description>
-    <url>https://github.com/yesdog/Waterdog</url>
+    <url>https://github.com/WaterdogPE/Waterdog</url>
 
     <ciManagement>
         <system>jenkins</system>
-        <url>http://ci.codemc.org/job/yesdog/job/Waterdog</url>
+        <url>https://jenkins.waterdog.dev/job/Waterdog/job/Waterdog/</url>
     </ciManagement>
 
     <modules>
@@ -22,25 +22,27 @@
     </modules>
 
     <scm>
-        <connection>scm:git:git@github.com:com:yesdog/Waterdog.git</connection>
-        <developerConnection>scm:git:git@github.com:yesdog/Waterdog.git</developerConnection>
-        <url>git@github.com:yesdog/Waterdog.git</url>
+        <connection>scm:git:git@github.com:com:WaterdogPE/Waterdog.git</connection>
+        <developerConnection>scm:git:git@github.com:WaterdogPE/Waterdog.git</developerConnection>
+        <url>git@github.com:WaterdogPE/Waterdog.git</url>
     </scm>
 
     <issueManagement>
         <system>GitHub</system>
-        <url>https://github.com/yesdog/Waterdog/issues</url>
+        <url>https://github.com/WaterdogPE/Waterdog/issues</url>
     </issueManagement>
 
     <distributionManagement>
-        <snapshotRepository>
-            <id>codemc-snapshots</id>
-            <url>https://repo.codemc.org/repository/maven-snapshots</url>
-        </snapshotRepository>
         <repository>
-            <id>codemc-releases</id>
-            <url>https://repo.codemc.org/repository/maven-releases</url>
+            <id>central</id>
+            <name>waterdog-releases</name>
+            <url>https://repo.waterdog.dev/artifactory/releases</url>
         </repository>
+        <snapshotRepository>
+            <id>snapshots</id>
+            <name>waterdog-snapshots</name>
+            <url>https://repo.waterdog.dev/artifactory/snapshots</url>
+        </snapshotRepository>
     </distributionManagement>
 
     <build>
