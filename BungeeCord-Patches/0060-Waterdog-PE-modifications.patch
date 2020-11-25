@@ -1,4 +1,4 @@
-From 1642a08a58d0172218645b5c1fc9cccb83eff488 Mon Sep 17 00:00:00 2001
+From d407e38e16a4e8dc2a8835f0ea288a9124e3ef82 Mon Sep 17 00:00:00 2001
 From: Colin Godsey <crgodsey@gmail.com>
 Date: Tue, 16 Apr 2019 07:50:25 -0600
 Subject: [PATCH] Waterdog PE (modifications)
@@ -1294,7 +1294,7 @@ index 7b002089..ea0f4d5c 100644
      public void addPlayer(ProxiedPlayer player)
      {
 diff --git a/proxy/src/main/java/net/md_5/bungee/ServerConnector.java b/proxy/src/main/java/net/md_5/bungee/ServerConnector.java
-index 35a19224..98c9f7f6 100644
+index 35a19224..ea394161 100644
 --- a/proxy/src/main/java/net/md_5/bungee/ServerConnector.java
 +++ b/proxy/src/main/java/net/md_5/bungee/ServerConnector.java
 @@ -54,6 +54,8 @@ import net.md_5.bungee.protocol.packet.SetCompression;
@@ -1444,23 +1444,23 @@ index 35a19224..98c9f7f6 100644
 +            if (login instanceof network.ycc.waterdog.pe.packet.PELogin) {
 +                network.ycc.waterdog.pe.packet.PELogin peLogin = (network.ycc.waterdog.pe.packet.PELogin) login;
 +
-+                // TODO: version support check
-+
 +                modLogin = new network.ycc.waterdog.pe.packet.PELogin( user.getClientEntityId(),
 +                        login.getGameMode(), (byte) login.getDimension(), login.getDifficulty(),
 +                        (byte) user.getPendingConnection().getListener().getTabListSize(), login.getLevelType(),
 +                        login.getViewDistance(), login.isReducedDebugInfo(), peLogin.getTailPayload() );
 +
-+                ByteBuf paletteData = io.netty.buffer.Unpooled.wrappedBuffer(peLogin.getTailPayload())
-+                        .skipBytes(peLogin.getPayloadPaletteOffset())
-+                        .readSlice(peLogin.getPayloadPaletteLength());
++                // Since 419 block palette is not sent by server
++                if (user.getPendingConnection().getVersion() < ProtocolConstants.MINECRAFT_PE_1_16_100){
++                    ByteBuf paletteData = io.netty.buffer.Unpooled.wrappedBuffer(peLogin.getTailPayload())
++                            .skipBytes(peLogin.getPayloadPaletteOffset())
++                            .readSlice(peLogin.getPayloadPaletteLength());
 +
-+                network.ycc.waterdog.pe.PEBlockPalette palette = network.ycc.waterdog.pe.PEBlockPalette.get(
-+                        paletteData, user.getPendingConnection().getVersion());
++                    network.ycc.waterdog.pe.PEBlockPalette palette = network.ycc.waterdog.pe.PEBlockPalette.get(
++                            paletteData, user.getPendingConnection().getVersion());
 +
-+                user.setClientBlockPalette(palette);
-+                user.setBlockRewrite(palette.createRewrite(palette));
-+
++                    user.setClientBlockPalette(palette);
++                    user.setBlockRewrite(palette.createRewrite(palette));
++                }
 +                peLogin.setTailPayload(null); //save heap space
 +            }
 +            // Waterdog end
@@ -1482,7 +1482,7 @@ index 35a19224..98c9f7f6 100644
              if ( !user.isDisableEntityMetadataRewrite() ) { // Waterfall
              for ( Objective objective : serverScoreboard.getObjectives() )
              {
-@@ -328,6 +425,40 @@ public class ServerConnector extends PacketHandler
+@@ -328,6 +425,43 @@ public class ServerConnector extends PacketHandler
              }
              user.setDimension( login.getDimension() );
  
@@ -1496,13 +1496,16 @@ index 35a19224..98c9f7f6 100644
 +
 +                server.unsafe().sendPacket(new network.ycc.waterdog.pe.packet.PELocalPlayerInitialized(user.getClientEntityId()));
 +
-+                ByteBuf paletteData = io.netty.buffer.Unpooled.wrappedBuffer(peLogin.getTailPayload())
-+                        .skipBytes(peLogin.getPayloadPaletteOffset())
-+                        .readSlice(peLogin.getPayloadPaletteLength());
++                // Since 419 block palette is not sent by server
++                if (user.getPendingConnection().getVersion() < ProtocolConstants.MINECRAFT_PE_1_16_100){
++                    ByteBuf paletteData = io.netty.buffer.Unpooled.wrappedBuffer(peLogin.getTailPayload())
++                            .skipBytes(peLogin.getPayloadPaletteOffset())
++                            .readSlice(peLogin.getPayloadPaletteLength());
 +
-+                network.ycc.waterdog.pe.PEBlockPalette palette = network.ycc.waterdog.pe.PEBlockPalette.get(
-+                        paletteData, user.getPendingConnection().getVersion());
-+                user.setBlockRewrite(palette.createRewrite(user.getClientBlockPalette()));
++                    network.ycc.waterdog.pe.PEBlockPalette palette = network.ycc.waterdog.pe.PEBlockPalette.get(
++                            paletteData, user.getPendingConnection().getVersion());
++                    user.setBlockRewrite(palette.createRewrite(user.getClientBlockPalette()));
++                }
 +
 +                java.util.Collection<java.util.UUID> playerList = user.getPePlayerList();
 +                playerList.forEach(uuid ->
@@ -1799,12 +1802,16 @@ index 65121ba2..76953d79 100644
  
          return ret;
 diff --git a/proxy/src/main/java/net/md_5/bungee/connection/DownstreamBridge.java b/proxy/src/main/java/net/md_5/bungee/connection/DownstreamBridge.java
-index d7d0fafc..afabae45 100644
+index d7d0fafc..7bc67b64 100644
 --- a/proxy/src/main/java/net/md_5/bungee/connection/DownstreamBridge.java
 +++ b/proxy/src/main/java/net/md_5/bungee/connection/DownstreamBridge.java
-@@ -140,6 +140,25 @@ public class DownstreamBridge extends PacketHandler
-     public void handle(PacketWrapper packet) throws Exception
-     {
+@@ -137,9 +137,29 @@ public class DownstreamBridge extends PacketHandler
+     }
+ 
+     @Override
+-    public void handle(PacketWrapper packet) throws Exception
+-    {
++    public void handle(PacketWrapper packet) throws Exception {
          con.getEntityRewrite().rewriteClientbound( packet.buf, con.getServerEntityId(), con.getClientEntityId(), con.getPendingConnection().getVersion() );
 +        // Waterdog start
 +        if (ProtocolConstants.isPE(con.getPendingConnection().getVersion())) {
@@ -1822,13 +1829,15 @@ index d7d0fafc..afabae45 100644
 +                        con.getUniqueId(), con.getPendingConnection().getLoginId());
 +            }
 +
-+            con.getBlockRewrite().rewriteClientbound(packet.buf, con.getPendingConnection().getVersion());
++            if (con.getPendingConnection().getVersion() < ProtocolConstants.MINECRAFT_PE_1_16_100){
++                con.getBlockRewrite().rewriteClientbound(packet.buf, con.getPendingConnection().getVersion());
++            }
 +        }
 +        // Waterdog end
          con.sendPacket( packet );
      }
  
-@@ -160,6 +179,21 @@ public class DownstreamBridge extends PacketHandler
+@@ -160,6 +180,21 @@ public class DownstreamBridge extends PacketHandler
          throw CancelSendSignal.INSTANCE; // Always throw because of profile rewriting
      }
  
@@ -1850,7 +1859,7 @@ index d7d0fafc..afabae45 100644
      @Override
      public void handle(ScoreboardObjective objective) throws Exception
      {
-@@ -476,6 +510,19 @@ public class DownstreamBridge extends PacketHandler
+@@ -476,6 +511,19 @@ public class DownstreamBridge extends PacketHandler
                      out.writeUTF( player.getUUID() );
                  }
              }
