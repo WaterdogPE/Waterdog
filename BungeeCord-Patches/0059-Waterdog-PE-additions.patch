@@ -1,4 +1,4 @@
-From 445dee16aea0273da072fd5eea5250322956a978 Mon Sep 17 00:00:00 2001
+From fb48afd3a6bc5d6d0332b1cb71a805a4915931ba Mon Sep 17 00:00:00 2001
 From: Colin Godsey <crgodsey@gmail.com>
 Date: Tue, 16 Apr 2019 07:50:11 -0600
 Subject: [PATCH] Waterdog PE (additions)
@@ -1354,10 +1354,10 @@ index 00000000..6a15b9c2
 +}
 diff --git a/proxy/src/main/java/net/md_5/bungee/entitymap/EntityMap_PE.java b/proxy/src/main/java/net/md_5/bungee/entitymap/EntityMap_PE.java
 new file mode 100644
-index 00000000..86331181
+index 00000000..83ec76aa
 --- /dev/null
 +++ b/proxy/src/main/java/net/md_5/bungee/entitymap/EntityMap_PE.java
-@@ -0,0 +1,385 @@
+@@ -0,0 +1,391 @@
 +package net.md_5.bungee.entitymap;
 +
 +import io.netty.buffer.ByteBuf;
@@ -1497,6 +1497,9 @@ index 00000000..86331181
 +                                act.accept(SK_VI_DATA); //image
 +                                to.writeBytes(from, Integer.BYTES); //type
 +                                to.writeBytes(from, Float.BYTES); //frames
++                                if (version >= ProtocolConstants.MINECRAFT_PE_1_16_100){
++                                    to.writeBytes(from, Integer.BYTES); // AnimationExpressionType
++                                }
 +                            }
 +                            to.writeBytes(from, Integer.BYTES); //cape width
 +                            to.writeBytes(from, Integer.BYTES); //cape height
@@ -1654,6 +1657,9 @@ index 00000000..86331181
 +                                packet.skipBytes(DefinedPacket.readVarInt(packet)); //image
 +                                packet.skipBytes(Integer.BYTES); //type
 +                                packet.skipBytes(Float.BYTES); //frames
++                                if (version >= ProtocolConstants.MINECRAFT_PE_1_16_100){
++                                    packet.skipBytes(Integer.BYTES); // AnimationExpressionType
++                                }
 +                            }
 +
 +                            packet.skipBytes(Integer.BYTES); //cape width
