@@ -1,4 +1,4 @@
-From a58f2cb7963530f665272dc93d56f03816fd359b Mon Sep 17 00:00:00 2001
+From 445dee16aea0273da072fd5eea5250322956a978 Mon Sep 17 00:00:00 2001
 From: Colin Godsey <crgodsey@gmail.com>
 Date: Tue, 16 Apr 2019 07:50:11 -0600
 Subject: [PATCH] Waterdog PE (additions)
@@ -688,14 +688,13 @@ index 00000000..e0c0b55f
 +}
 diff --git a/protocol/src/main/java/network/ycc/waterdog/pe/packet/PELogin.java b/protocol/src/main/java/network/ycc/waterdog/pe/packet/PELogin.java
 new file mode 100644
-index 00000000..15eff8e8
+index 00000000..a50de6f8
 --- /dev/null
 +++ b/protocol/src/main/java/network/ycc/waterdog/pe/packet/PELogin.java
-@@ -0,0 +1,203 @@
+@@ -0,0 +1,232 @@
 +package network.ycc.waterdog.pe.packet;
 +
-+import com.nukkitx.nbt.stream.NBTInputStream;
-+import com.nukkitx.nbt.stream.NetworkDataInputStream;
++import com.nukkitx.nbt.NbtUtils;
 +
 +import io.netty.buffer.ByteBuf;
 +import io.netty.buffer.ByteBufInputStream;
@@ -711,6 +710,8 @@ index 00000000..15eff8e8
 +import network.ycc.waterdog.pe.PEDataValues;
 +
 +import java.io.IOException;
++import java.util.HashMap;
++import java.util.Map;
 +
 +@Data
 +@NoArgsConstructor
@@ -720,8 +721,9 @@ index 00000000..15eff8e8
 +    private float spawnY;
 +    private float spawnZ;
 +    private byte[] tailPayload;
-+    private int payloadPaletteOffset; //offset of tailPayload for the palette
++    private int payloadPaletteOffset; // Offset of tailPayload for the palette
 +    private int payloadPaletteLength;
++    private Map<String, Object> rules = new HashMap<>();
 +
 +    public PELogin(int entityId, short gameMode, int dimension, short difficulty, short maxPlayers, String levelType, int viewDistance, boolean reducedDebugInfo, byte[] tailPayload) {
 +        super(entityId, gameMode, dimension, 0, difficulty, maxPlayers, levelType, viewDistance, reducedDebugInfo, true);
@@ -730,22 +732,22 @@ index 00000000..15eff8e8
 +
 +    @Override
 +    public void read(ByteBuf buf, ProtocolConstants.Direction direction, int protocolVersion) {
-+        readSVarLong(buf); //entity id (but it's actually signed varlong, so we use the field below, which is unsigned)
++        readSVarLong(buf); // Entity id (but it's actually signed varlong, so we use the field below, which is unsigned)
 +        setEntityId((int) readVarLong(buf));
 +        setGameMode((short) readSVarInt(buf));
-+        spawnX = buf.readFloatLE(); //x
-+        spawnY = buf.readFloatLE(); //y
-+        spawnZ = buf.readFloatLE(); //z
-+        buf.readFloatLE(); //yaw
-+        buf.readFloatLE(); //pitch
-+        readSVarInt(buf); //seed
++        spawnX = buf.readFloatLE(); // X
++        spawnY = buf.readFloatLE(); // Y
++        spawnZ = buf.readFloatLE(); // Z
++        buf.readFloatLE(); // Yaw
++        buf.readFloatLE(); // Pitch
++        readSVarInt(buf); // Seed
 +        if (protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_16){
-+            buf.readShort();//type
-+            DefinedPacket.readString(buf); //biome
++            buf.readShort(); // Type
++            DefinedPacket.readString(buf); // Biome
 +        }
 +        setDimension(PEDataValues.getPcDimensionId(readSVarInt(buf)));
-+        readSVarInt(buf); //world type (1 - infinite)
-+        readSVarInt(buf); //world gamemode (SURVIVAL)
++        readSVarInt(buf); // World type (1 - infinite)
++        readSVarInt(buf); // World gamemode (SURVIVAL)
 +        setDifficulty((short) readSVarInt(buf));
 +
 +        final int payloadStartIndex = buf.readerIndex();
@@ -753,108 +755,137 @@ index 00000000..15eff8e8
 +        buf.readBytes(tailPayload);
 +        buf.readerIndex(payloadStartIndex);
 +
-+        DefinedPacket.readSVarInt(buf); //spawn position
-+        DefinedPacket.readSVarLong(buf); //should be VarInt, but nukkit...
++        DefinedPacket.readSVarInt(buf); // Spawn position
++        DefinedPacket.readSVarLong(buf); // Should be VarInt, but nukkit... //TODO: wtf
 +        DefinedPacket.readSVarInt(buf);
-+        buf.readBoolean(); //disable achievements
-+        DefinedPacket.readSVarInt(buf); //time
-+        DefinedPacket.readSVarInt(buf); //edu mode
-+        buf.readBoolean(); //edu features
++        buf.readBoolean(); // Disable achievements
++        DefinedPacket.readSVarInt(buf); // Time
++        DefinedPacket.readSVarInt(buf); // Edu mode
++        buf.readBoolean(); // Edu features
 +        if (protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_16) {
-+            DefinedPacket.readString(buf); //educationProductId
++            DefinedPacket.readString(buf); // educationProductId
 +        }
-+        buf.readFloatLE(); //rain level
-+        buf.readFloatLE(); //lighting level
++        buf.readFloatLE(); // Rain level
++        buf.readFloatLE(); // Lighting level
 +        if (protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_9) {
-+            buf.readBoolean(); //has confirmed platform locked content
++            buf.readBoolean(); // Has confirmed platform locked content
 +        }
-+        buf.readBoolean(); //is multiplayer
-+        buf.readBoolean(); //broadcast to lan
++        buf.readBoolean(); // Is multiplayer
++        buf.readBoolean(); // Broadcast to lan
 +        if (protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_9) {
-+            DefinedPacket.readSVarInt(buf); //xbox live broadcast, 3 = friends of friends
-+            DefinedPacket.readSVarInt(buf); //platform broadcast
++            DefinedPacket.readSVarInt(buf); // Xbox live broadcast, 3 = friends of friends
++            DefinedPacket.readSVarInt(buf); // Platform broadcast
 +        } else {
-+            buf.readBoolean(); //broadcast to xbl
++            buf.readBoolean(); // Broadcast to xbl
 +        }
-+        buf.readBoolean(); //commands enabled
-+        buf.readBoolean(); //needs texture pack
-+        
-+        final int nGameRules = DefinedPacket.readVarInt(buf); //game rules
++        buf.readBoolean(); // Commands enabled
++        buf.readBoolean(); // Needs texture pack
++
++        final int nGameRules = DefinedPacket.readVarInt(buf); // Game rules
 +        for (int i = 0 ; i < nGameRules ; i++) {
-+            DefinedPacket.readString(buf);
++            String rule = DefinedPacket.readString(buf);
++            Object value;
++
 +            final int grType = DefinedPacket.readVarInt(buf);
 +            switch (grType) {
 +                case 1: {
-+                    buf.readByte();
++                    value = buf.readByte();
 +                    break;
 +                }
 +                case 2: {
-+                    DefinedPacket.readSVarInt(buf);
++                    value = DefinedPacket.readSVarInt(buf);
 +                    break;
 +                }
 +                case 3: {
-+                    buf.readFloatLE();
++                    value = buf.readFloatLE();
 +                    break;
 +                }
 +                default:
 +                    throw new IllegalArgumentException("Unknown game rule type " + grType);
 +            }
++            rules.put(rule, value);
 +        }
 +
-+        buf.readBoolean(); //bonus chest
-+        buf.readBoolean(); //player map enabled
-+        if (protocolVersion < ProtocolConstants.MINECRAFT_PE_1_9) {
-+            buf.readBoolean(); //trust players
++        if (protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_16_100) {
++            int experimentCount = buf.readIntLE(); // Experiment count
++            for (int i = 0; i< experimentCount; i++){
++                DefinedPacket.readString(buf); // Experiment name
++                buf.readBoolean(); // Enabled
++            }
++            buf.readBoolean(); // Were experiments previously toggled
 +        }
-+        DefinedPacket.readSVarInt(buf); //permission level
++
++        buf.readBoolean(); // Bonus chest
++        buf.readBoolean(); // Player map enabled
 +        if (protocolVersion < ProtocolConstants.MINECRAFT_PE_1_9) {
-+            DefinedPacket.readSVarInt(buf); //game publish setting
++            buf.readBoolean(); // Trust players
 +        }
-+        buf.readIntLE(); //Server chunk tick radius..
++        DefinedPacket.readSVarInt(buf); // Permission level
 +        if (protocolVersion < ProtocolConstants.MINECRAFT_PE_1_9) {
-+            buf.readBoolean(); //Platformbroadcast
-+            DefinedPacket.readSVarInt(buf); //Broadcast mode
-+            buf.readBoolean(); //Broadcast intent
++            DefinedPacket.readSVarInt(buf); // Same publish setting
 +        }
-+        buf.readBoolean(); //hasLockedRes pack
-+        buf.readBoolean(); //hasLockedBeh pack
-+        buf.readBoolean(); //hasLocked world template.
-+        buf.readBoolean(); //Microsoft GamerTags only. Hell no!
-+        buf.readBoolean(); //is from world template
-+        buf.readBoolean(); //is world template option locked
++        buf.readIntLE(); // Server chunk tick radius..
++        if (protocolVersion < ProtocolConstants.MINECRAFT_PE_1_9) {
++            buf.readBoolean(); // Platformbroadcast
++            DefinedPacket.readSVarInt(buf); // Broadcast mode
++            buf.readBoolean(); // Broadcast intent
++        }
++        buf.readBoolean(); // HasLockedRes pack
++        buf.readBoolean(); // hasLockedBeh pack
++        buf.readBoolean(); // HasLocked world template.
++        buf.readBoolean(); // Microsoft GamerTags only. Hell no!
++        buf.readBoolean(); // Is from world template
++        buf.readBoolean(); // Is world template option locked
 +        if (protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_12) {
-+            buf.readByte(); //only spawn v1 villagers
++            buf.readByte(); // Only spawn v1 villagers
 +        }
 +        if (protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_13) {
-+            DefinedPacket.readString(buf); //vanilla version
++            DefinedPacket.readString(buf); // Vanilla version
 +        }
 +        if (protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_16){
-+            buf.readIntLE(); //worldWidth
-+            buf.readIntLE(); //worldDepth
-+            buf.readBoolean(); //netherType
-+            buf.readBoolean(); //expGameplay
++            buf.readIntLE(); // WorldWidth
++            buf.readIntLE(); // WorldDepth
++            buf.readBoolean(); // NetherType
++            buf.readBoolean(); // ExpGameplay
 +        }
-+        DefinedPacket.readString(buf); //level ID (empty string)
-+        DefinedPacket.readString(buf); //world name (empty string)
-+        DefinedPacket.readString(buf); //premium world template id (empty string)
-+        buf.readBoolean(); //is trial
++        DefinedPacket.readString(buf); // Level ID (empty string)
++        DefinedPacket.readString(buf); // World name (empty string)
++        DefinedPacket.readString(buf); // Premium world template id (empty string)
++        buf.readBoolean(); // Is trial
 +        if (protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_13) {
-+            buf.readBoolean(); //is server authoritative over movement
++            // Is server authoritative over movement
++            if (protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_16_100){
++                DefinedPacket.readSVarInt(buf);
++            }else {
++                buf.readBoolean();
++            }
 +        }
-+        buf.readLongLE(); //world ticks
-+        DefinedPacket.readSVarInt(buf); //enchantment seed FFS MOJANG
++        buf.readLongLE(); // World ticks
++        DefinedPacket.readSVarInt(buf); // Enchantment seed FFS MOJANG
 +
++        // Here starts the pain of block palette
++        // Since protocol 419 servers does not send vanilla blocks
++        // Servers may send custom added blocks only. But we don't support its rewrite yet.
++        if (protocolVersion < ProtocolConstants.MINECRAFT_PE_1_16_100){
++            this.parseBlockPalette(protocolVersion, payloadStartIndex, buf);
++        }
++
++        // Item palette here, but we don't care.
++        // Skip the rest.
++        buf.skipBytes(buf.readableBytes());
++    }
++
++    private void parseBlockPalette(int protocolVersion, int payloadStartIndex, ByteBuf buf){
 +        if (protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_13) {
 +            final int paletteStart = buf.readerIndex();
 +            try {
-+                final ByteBufInputStream is = new ByteBufInputStream(buf);
-+                new NBTInputStream(new NetworkDataInputStream(is)).readTag();
++                final ByteBufInputStream inputStream = new ByteBufInputStream(buf);
++                NbtUtils.createNetworkReader(inputStream).readTag();
 +            } catch (IOException e) {
-+                throw new IllegalArgumentException("Failed to parse palette NBT", e);
++                throw new IllegalArgumentException("Failed to parse block palette!", e);
 +            }
 +            payloadPaletteOffset = paletteStart - payloadStartIndex;
 +            payloadPaletteLength = buf.readerIndex() - paletteStart;
-+            // item palette after this, but we don't care yet
 +        } else {
 +            final int paletteItems = DefinedPacket.readVarInt(buf);
 +            final int paletteStart = buf.readerIndex();
@@ -869,8 +900,6 @@ index 00000000..15eff8e8
 +            payloadPaletteOffset = paletteStart - payloadStartIndex;
 +            payloadPaletteLength = buf.readerIndex() - paletteStart;
 +        }
-+
-+        buf.skipBytes(buf.readableBytes()); //skip the rest
 +    }
 +
 +    @Override
@@ -878,20 +907,20 @@ index 00000000..15eff8e8
 +        writeSVarLong(getEntityId(), buf);
 +        writeVarLong(getEntityId(), buf);
 +        writeSVarInt(getGameMode(), buf);
-+        buf.writeFloatLE(spawnX); //player x
-+        buf.writeFloatLE(spawnY); //player y
-+        buf.writeFloatLE(spawnZ); //player z
-+        buf.writeFloatLE(0); //player pitch
-+        buf.writeFloatLE(0); //player yaw
-+        writeSVarInt(0, buf); //seed
++        buf.writeFloatLE(spawnX); // player x
++        buf.writeFloatLE(spawnY); // player y
++        buf.writeFloatLE(spawnZ); // player z
++        buf.writeFloatLE(0); // player pitch
++        buf.writeFloatLE(0); // player yaw
++        writeSVarInt(0, buf); // seed
 +        if (protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_16){
-+            buf.writeShort(0); //type
-+            DefinedPacket.writeString("", buf); //biome
++            buf.writeShort(0); // type
++            DefinedPacket.writeString("", buf); // biome
 +        }
-+        writeSVarInt(PEDataValues.getPeDimensionId(getDimension()), buf); //world dimension
-+        writeSVarInt(1, buf); //world type (1 - infinite)
-+        writeSVarInt(0, buf); //world gamemode
-+        writeSVarInt(getDifficulty(), buf); //world difficulty
++        writeSVarInt(PEDataValues.getPeDimensionId(getDimension()), buf); // world dimension
++        writeSVarInt(1, buf); // world type (1 - infinite)
++        writeSVarInt(0, buf); // world gamemode
++        writeSVarInt(getDifficulty(), buf); // world difficulty
 +        buf.writeBytes(tailPayload);
 +    }
 +}
@@ -1102,12 +1131,13 @@ index 00000000..32e761d5
 +}
 diff --git a/protocol/src/main/java/network/ycc/waterdog/pe/packet/PEResourceStack.java b/protocol/src/main/java/network/ycc/waterdog/pe/packet/PEResourceStack.java
 new file mode 100644
-index 00000000..7c31b51b
+index 00000000..a0c8ee42
 --- /dev/null
 +++ b/protocol/src/main/java/network/ycc/waterdog/pe/packet/PEResourceStack.java
-@@ -0,0 +1,55 @@
+@@ -0,0 +1,62 @@
 +package network.ycc.waterdog.pe.packet;
 +
++import net.md_5.bungee.protocol.ProtocolConstants;
 +import network.ycc.waterdog.pe.PEResourcePackData;
 +
 +import io.netty.buffer.ByteBuf;
@@ -1137,12 +1167,18 @@ index 00000000..7c31b51b
 +    }
 +
 +    @Override
-+    public void write(ByteBuf buf) {
++    public void write(ByteBuf buf, ProtocolConstants.Direction direction, int protocolVersion) {
 +        buf.writeBoolean(required);
 +        writePacks(buf, behaviorPacks);
 +        writePacks(buf, resourcePacks);
-+        buf.writeBoolean(isExperimental);
++        if (protocolVersion < ProtocolConstants.MINECRAFT_PE_1_16_100){
++            buf.writeBoolean(isExperimental);
++        }
 +        DefinedPacket.writeString(baseGameVersion, buf);
++        if (protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_16_100){
++            buf.writeIntLE(0); // Experiments length
++            buf.writeBoolean(false); // Were experiments previously toggled
++        }
 +    }
 +
 +    @Override
@@ -3126,7 +3162,7 @@ index 00000000..ba95aaff
 +}
 diff --git a/proxy/src/main/java/network/ycc/waterdog/pe/PEResourcePackManager.java b/proxy/src/main/java/network/ycc/waterdog/pe/PEResourcePackManager.java
 new file mode 100644
-index 00000000..c0149117
+index 00000000..8467dc38
 --- /dev/null
 +++ b/proxy/src/main/java/network/ycc/waterdog/pe/PEResourcePackManager.java
 @@ -0,0 +1,89 @@
@@ -3195,7 +3231,7 @@ index 00000000..c0149117
 +        bPacks.forEach(pack -> packMap.put(pack.getUuid(), pack));
 +
 +        resourcePacks = rPacks.toArray(resourcePacks);
-+        behaviorPacks = rPacks.toArray(behaviorPacks);
++        behaviorPacks = bPacks.toArray(behaviorPacks);
 +    }
 +
 +    public PEResourcePackData get(UUID uuid) {

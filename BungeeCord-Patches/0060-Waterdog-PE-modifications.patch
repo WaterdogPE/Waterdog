@@ -1,4 +1,4 @@
-From 8134b0a950c5304a2d81a9b9262b525d57e93a08 Mon Sep 17 00:00:00 2001
+From 1642a08a58d0172218645b5c1fc9cccb83eff488 Mon Sep 17 00:00:00 2001
 From: Colin Godsey <crgodsey@gmail.com>
 Date: Tue, 16 Apr 2019 07:50:25 -0600
 Subject: [PATCH] Waterdog PE (modifications)
@@ -1082,63 +1082,6 @@ index 55ca27bd..88074783 100644
 +        channel.write(gameRulePacket);
 +    }
  }
-diff --git a/protocol/src/main/java/network/ycc/waterdog/pe/packet/PELogin.java b/protocol/src/main/java/network/ycc/waterdog/pe/packet/PELogin.java
-index 15eff8e8..49ec3010 100644
---- a/protocol/src/main/java/network/ycc/waterdog/pe/packet/PELogin.java
-+++ b/protocol/src/main/java/network/ycc/waterdog/pe/packet/PELogin.java
-@@ -17,6 +17,8 @@ import net.md_5.bungee.protocol.packet.Login;
- import network.ycc.waterdog.pe.PEDataValues;
- 
- import java.io.IOException;
-+import java.util.HashMap;
-+import java.util.Map;
- 
- @Data
- @NoArgsConstructor
-@@ -28,6 +30,7 @@ public class PELogin extends Login {
-     private byte[] tailPayload;
-     private int payloadPaletteOffset; //offset of tailPayload for the palette
-     private int payloadPaletteLength;
-+    private Map<String, Object> rules = new HashMap<>();
- 
-     public PELogin(int entityId, short gameMode, int dimension, short difficulty, short maxPlayers, String levelType, int viewDistance, boolean reducedDebugInfo, byte[] tailPayload) {
-         super(entityId, gameMode, dimension, 0, difficulty, maxPlayers, levelType, viewDistance, reducedDebugInfo, true);
-@@ -84,27 +87,30 @@ public class PELogin extends Login {
-         }
-         buf.readBoolean(); //commands enabled
-         buf.readBoolean(); //needs texture pack
--        
-+
-         final int nGameRules = DefinedPacket.readVarInt(buf); //game rules
-         for (int i = 0 ; i < nGameRules ; i++) {
--            DefinedPacket.readString(buf);
-+            String rule = DefinedPacket.readString(buf);
-+            Object value;
-+
-             final int grType = DefinedPacket.readVarInt(buf);
-             switch (grType) {
-                 case 1: {
--                    buf.readByte();
-+                    value = buf.readByte();
-                     break;
-                 }
-                 case 2: {
--                    DefinedPacket.readSVarInt(buf);
-+                    value = DefinedPacket.readSVarInt(buf);
-                     break;
-                 }
-                 case 3: {
--                    buf.readFloatLE();
-+                    value = buf.readFloatLE();
-                     break;
-                 }
-                 default:
-                     throw new IllegalArgumentException("Unknown game rule type " + grType);
-             }
-+            rules.put(rule, value);
-         }
- 
-         buf.readBoolean(); //bonus chest
 diff --git a/protocol/src/main/java/network/ycc/waterdog/pe/packet/PEStopSoundPacket.java b/protocol/src/main/java/network/ycc/waterdog/pe/packet/PEStopSoundPacket.java
 index dab227a1..12b52465 100644
 --- a/protocol/src/main/java/network/ycc/waterdog/pe/packet/PEStopSoundPacket.java
