@@ -18,6 +18,11 @@ pipeline {
                     sh 'mvn clean -Pupstream -B -DSNYK_API_ENDPOINT="https://snyk.io/" -Dbuild.number=${BUILD_NUMBER} install'
                 }
             }
+            post {
+                success {
+                    archiveArtifacts artifacts: "Waterfall-Proxy/bootstrap/target/Waterdog.jar,Waterfall-Proxy/module/cmd-server/target/cmd_server.jar,Waterfall-Proxy/module/cmd-list/target/cmd_list.jar,Waterfall-Proxy/module/reconnect-yaml/target/reconnect_yaml.jar,Waterfall-Proxy/module/cmd-find/target/cmd_find.jar,Waterfall-Proxy/module/cmd-send/target/cmd_send.jar,Waterfall-Proxy/module/cmd-alert/target/cmd_alert.jar", fingerprint: true
+                }
+            }
         }
 
         stage('Snapshot') {
@@ -31,7 +36,6 @@ pipeline {
     }
     post {
         success {
-            archiveArtifacts artifacts: "Waterfall-Proxy/bootstrap/target/Waterdog.jar,Waterfall-Proxy/module/cmd-server/target/cmd_server.jar,Waterfall-Proxy/module/cmd-list/target/cmd_list.jar,Waterfall-Proxy/module/reconnect-yaml/target/reconnect_yaml.jar,Waterfall-Proxy/module/cmd-find/target/cmd_find.jar,Waterfall-Proxy/module/cmd-send/target/cmd_send.jar,Waterfall-Proxy/module/cmd-alert/target/cmd_alert.jar", fingerprint: true
             discordSend(webhookURL: "https://discordapp.com/api/webhooks/772560103869644850/1eOgPJakLJcFjqFNnC0ngK152FU_MqfiyR7LgON6hKSeXgb69o1vIIaDg7JRMGfEov2p", description: "**Build:** ${env.BUILD_NUMBER}\n**Status:** Success\n\n**Changes:**\n${env.BUILD_URL}", footer: "Waterdog Jenkins", link: "${env.BUILD_URL}", successful: true, title: "Build Success: Waterdog", unstable: false, result: "SUCCESS")
         }
         failure {
@@ -42,5 +46,3 @@ pipeline {
         }
     }
 }
-
-
