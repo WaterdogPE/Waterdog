@@ -1,4 +1,4 @@
-From d407e38e16a4e8dc2a8835f0ea288a9124e3ef82 Mon Sep 17 00:00:00 2001
+From 985fa74f092de8e8a3bb0c55c39f056826d0673e Mon Sep 17 00:00:00 2001
 From: Colin Godsey <crgodsey@gmail.com>
 Date: Tue, 16 Apr 2019 07:50:25 -0600
 Subject: [PATCH] Waterdog PE (modifications)
@@ -527,10 +527,10 @@ index aa1515f4..a90e7d0b 100644
                      {
                          // This is a new packet, skip it till we reach the next protocol
 diff --git a/protocol/src/main/java/net/md_5/bungee/protocol/ProtocolConstants.java b/protocol/src/main/java/net/md_5/bungee/protocol/ProtocolConstants.java
-index cd987c8a..5acf2b49 100644
+index cd987c8a..a1a6e707 100644
 --- a/protocol/src/main/java/net/md_5/bungee/protocol/ProtocolConstants.java
 +++ b/protocol/src/main/java/net/md_5/bungee/protocol/ProtocolConstants.java
-@@ -6,6 +6,21 @@ import java.util.List;
+@@ -6,6 +6,22 @@ import java.util.List;
  public class ProtocolConstants
  {
  
@@ -548,11 +548,12 @@ index cd987c8a..5acf2b49 100644
 +    public static final int MINECRAFT_PE_1_16 = 407 - PE_PROTOCOL_OFFSET;
 +    public static final int MINECRAFT_PE_1_16_20 = 408 - PE_PROTOCOL_OFFSET;
 +    public static final int MINECRAFT_PE_1_16_100 = 419 - PE_PROTOCOL_OFFSET;
++    public static final int MINECRAFT_PE_1_16_200 = 422 - PE_PROTOCOL_OFFSET;
 +    // Waterdog end
      public static final int MINECRAFT_1_8 = 47;
      public static final int MINECRAFT_1_9 = 107;
      public static final int MINECRAFT_1_9_1 = 108;
-@@ -29,6 +44,17 @@ public class ProtocolConstants
+@@ -29,6 +45,17 @@ public class ProtocolConstants
      public static final int MINECRAFT_1_15_1 = 575;
      public static final int MINECRAFT_1_15_2 = 578;
      public static final List<String> SUPPORTED_VERSIONS = Arrays.asList(
@@ -570,7 +571,7 @@ index cd987c8a..5acf2b49 100644
              "1.8.x",
              "1.9.x",
              "1.10.x",
-@@ -39,6 +65,20 @@ public class ProtocolConstants
+@@ -39,6 +66,21 @@ public class ProtocolConstants
              "1.15.x"
      );
      public static final List<Integer> SUPPORTED_VERSION_IDS = Arrays.asList(
@@ -587,11 +588,12 @@ index cd987c8a..5acf2b49 100644
 +            ProtocolConstants.MINECRAFT_PE_1_16,
 +            ProtocolConstants.MINECRAFT_PE_1_16_20,
 +            ProtocolConstants.MINECRAFT_PE_1_16_100,
++            ProtocolConstants.MINECRAFT_PE_1_16_200,
 +            // Waterdog end
              ProtocolConstants.MINECRAFT_1_8,
              ProtocolConstants.MINECRAFT_1_9,
              ProtocolConstants.MINECRAFT_1_9_1,
-@@ -65,14 +105,22 @@ public class ProtocolConstants
+@@ -65,14 +107,22 @@ public class ProtocolConstants
  
      public static final boolean isBeforeOrEq(int before, int other)
      {
