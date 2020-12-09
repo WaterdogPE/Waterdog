@@ -1,4 +1,4 @@
-From fb48afd3a6bc5d6d0332b1cb71a805a4915931ba Mon Sep 17 00:00:00 2001
+From 07d2e33f64572944f808e258b0f736f4d1a0222d Mon Sep 17 00:00:00 2001
 From: Colin Godsey <crgodsey@gmail.com>
 Date: Tue, 16 Apr 2019 07:50:11 -0600
 Subject: [PATCH] Waterdog PE (additions)
@@ -966,10 +966,10 @@ index 00000000..7fe81e63
 +}
 diff --git a/protocol/src/main/java/network/ycc/waterdog/pe/packet/PEResourcePack.java b/protocol/src/main/java/network/ycc/waterdog/pe/packet/PEResourcePack.java
 new file mode 100644
-index 00000000..86529798
+index 00000000..2e28ee3b
 --- /dev/null
 +++ b/protocol/src/main/java/network/ycc/waterdog/pe/packet/PEResourcePack.java
-@@ -0,0 +1,59 @@
+@@ -0,0 +1,71 @@
 +package network.ycc.waterdog.pe.packet;
 +
 +import network.ycc.waterdog.pe.PEResourcePackData;
@@ -991,8 +991,8 @@ index 00000000..86529798
 +@EqualsAndHashCode(callSuper = false)
 +public class PEResourcePack extends DefinedPacket {
 +    private boolean required = true;
-+    private PEResourcePackData[] resourcePacks = null;
-+    private PEResourcePackData[] behaviorPacks = null;
++    private PEResourcePackData[] resourcePacks = new PEResourcePackData[0];
++    private PEResourcePackData[] behaviorPacks = new PEResourcePackData[0];
 +
 +    @Override
 +    public void read(ByteBuf buf) {
@@ -1001,10 +1001,10 @@ index 00000000..86529798
 +
 +    @Override
 +    public void write(ByteBuf buf, ProtocolConstants.Direction direction, int protocolVersion) {
-+        buf.writeBoolean(required);
-+        buf.writeBoolean(false); // has scripts
-+        writePacks(buf, behaviorPacks, protocolVersion);
-+        writePacks(buf, resourcePacks, protocolVersion);
++        buf.writeBoolean(this.required);
++        buf.writeBoolean(false); // Has scripts
++        this.writePacks(buf, this.behaviorPacks, protocolVersion);
++        this.writeResourcePacks(buf, this.resourcePacks, protocolVersion);
 +    }
 +
 +    @Override
@@ -1013,19 +1013,31 @@ index 00000000..86529798
 +    }
 +
 +    protected void writePacks(ByteBuf buf, PEResourcePackData[] packs, int protocolVersion) {
-+        buf.writeShortLE(packs == null ? 0 : packs.length);
-+        if (packs != null) {
-+            for (PEResourcePackData pack : packs) {
-+                writeString(pack.getUuid().toString(), buf);
-+                writeString(pack.getVersion(), buf);
-+                buf.writeLongLE(pack.getSize());
-+                writeString("", buf); //encryption key
-+                writeString("", buf); //sub-pack name
-+                writeString("", buf); //content identity
-+                if (protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_9) {
-+                    buf.writeBoolean(false); // has scripts
-+                }
++        buf.writeShortLE(packs.length);
++        for (PEResourcePackData pack : packs) {
++            this.writePackEntry(buf, pack, protocolVersion);
++        }
++    }
++
++    protected void writeResourcePacks(ByteBuf buf, PEResourcePackData[] packs, int protocolVersion){
++        buf.writeShortLE(packs.length);
++        for (PEResourcePackData pack : packs) {
++            this.writePackEntry(buf, pack, protocolVersion);
++            if (protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_16_200){
++                buf.writeBoolean(false); // Is raytracing capable
 +            }
++        }
++    }
++
++    private void writePackEntry(ByteBuf buf, PEResourcePackData pack, int protocolVersion) {
++        DefinedPacket.writeString(pack.getUuid().toString(), buf); // PackId
++        DefinedPacket.writeString(pack.getVersion(), buf); // Pack version
++        buf.writeLongLE(pack.getSize()); // Pack size
++        DefinedPacket.writeString("", buf); // Content key
++        DefinedPacket.writeString("", buf); // Sub-pack name
++        DefinedPacket.writeString("", buf); // Content id
++        if (protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_9) {
++            buf.writeBoolean(false); // Has scripts
 +        }
 +    }
 +}
