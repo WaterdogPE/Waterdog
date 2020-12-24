@@ -1,4 +1,4 @@
-From 07d2e33f64572944f808e258b0f736f4d1a0222d Mon Sep 17 00:00:00 2001
+From fe0741c32ead030a68ec90d3445122444c17f24a Mon Sep 17 00:00:00 2001
 From: Colin Godsey <crgodsey@gmail.com>
 Date: Tue, 16 Apr 2019 07:50:11 -0600
 Subject: [PATCH] Waterdog PE (additions)
@@ -268,7 +268,7 @@ index 00000000..9d983810
 +}
 diff --git a/protocol/src/main/java/network/ycc/waterdog/pe/PERawPacketData.java b/protocol/src/main/java/network/ycc/waterdog/pe/PERawPacketData.java
 new file mode 100644
-index 00000000..55ca27bd
+index 00000000..e510eaee
 --- /dev/null
 +++ b/protocol/src/main/java/network/ycc/waterdog/pe/PERawPacketData.java
 @@ -0,0 +1,176 @@
@@ -414,7 +414,7 @@ index 00000000..55ca27bd
 +        DefinedPacket.writeVarInt(pack.getSha256().length, resourcePackInfo);
 +        resourcePackInfo.writeBytes(pack.getSha256());
 +        resourcePackInfo.writeBoolean(false); //premium
-+        resourcePackInfo.writeByte(1); //resource pack
++        resourcePackInfo.writeByte(6); //resource pack
 +        channel.write(resourcePackInfo);
 +    }
 +
