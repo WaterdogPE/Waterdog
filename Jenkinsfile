@@ -35,14 +35,18 @@ pipeline {
         }
     }
     post {
-        success {
-            discordSend(webhookURL: "https://discordapp.com/api/webhooks/772560103869644850/1eOgPJakLJcFjqFNnC0ngK152FU_MqfiyR7LgON6hKSeXgb69o1vIIaDg7JRMGfEov2p", description: "**Build:** ${env.BUILD_NUMBER}\n**Status:** Success\n\n**Changes:**\n${env.BUILD_URL}", footer: "Waterdog Jenkins", link: "${env.BUILD_URL}", successful: true, title: "Build Success: Waterdog", unstable: false, result: "SUCCESS")
-        }
-        failure {
-            discordSend(webhookURL: "https://discordapp.com/api/webhooks/772560103869644850/1eOgPJakLJcFjqFNnC0ngK152FU_MqfiyR7LgON6hKSeXgb69o1vIIaDg7JRMGfEov2p", description: "**Build:** ${env.BUILD_NUMBER}\n**Status:** Failure\n\n**Changes:**\n${env.BUILD_URL}", footer: "Waterdog Jenkins", link: "${env.BUILD_URL}", successful: true, title: "Build Failed: Waterdog", unstable: false, result: "FAILURE")
-        }
         always {
             deleteDir()
+        }
+        success {
+            withCredentials([string(credentialsId: 'WDPE_Discord_Webhook', variable: 'TOKEN')]) {
+                discordSend(webhookURL: "$TOKEN", description: "**Build:** ${env.BUILD_NUMBER}\n**Status:** Success\n\n**Changes:**\n${env.BUILD_URL}", footer: "Waterdog Jenkins", link: "${env.BUILD_URL}", successful: true, title: "Build Success: Waterdog", unstable: false, result: "SUCCESS")
+            }
+        }
+        failure {
+            withCredentials([string(credentialsId: 'WDPE_Discord_Webhook', variable: 'TOKEN')]) {
+                discordSend(webhookURL: "$TOKEN", description: "**Build:** ${env.BUILD_NUMBER}\n**Status:** Failure\n\n**Changes:**\n${env.BUILD_URL}", footer: "Waterdog Jenkins", link: "${env.BUILD_URL}", successful: true, title: "Build Failed: Waterdog", unstable: false, result: "FAILURE")
+            }
         }
     }
 }
