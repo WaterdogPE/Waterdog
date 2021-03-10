@@ -1,4 +1,4 @@
-From 2bfe05eb2cbfe4be7633f7840331068fefff6002 Mon Sep 17 00:00:00 2001
+From 85570cd36894640be05d1985f4abc01f70d0b378 Mon Sep 17 00:00:00 2001
 From: Colin Godsey <crgodsey@gmail.com>
 Date: Tue, 16 Apr 2019 07:50:11 -0600
 Subject: [PATCH] Waterdog PE (additions)
@@ -3074,10 +3074,10 @@ index 00000000..08d67c4b
 +}
 diff --git a/proxy/src/main/java/network/ycc/waterdog/pe/PEProxyServerInfoHandler.java b/proxy/src/main/java/network/ycc/waterdog/pe/PEProxyServerInfoHandler.java
 new file mode 100644
-index 00000000..ba95aaff
+index 00000000..6ca5156c
 --- /dev/null
 +++ b/proxy/src/main/java/network/ycc/waterdog/pe/PEProxyServerInfoHandler.java
-@@ -0,0 +1,153 @@
+@@ -0,0 +1,157 @@
 +package network.ycc.waterdog.pe;
 +
 +import io.netty.buffer.ByteBuf;
@@ -3103,6 +3103,7 @@ index 00000000..ba95aaff
 +
 +import java.net.InetSocketAddress;
 +import java.net.SocketAddress;
++import java.util.StringJoiner;
 +import java.util.UUID;
 +import java.util.logging.Level;
 +
@@ -3121,7 +3122,7 @@ index 00000000..ba95aaff
 +        final RakNet.Config config = RakNet.config(ctx);
 +        final long clientTime = ping.getClientTime(); //must ditch references to ping
 +        final ServerPing.Protocol protocol = new ServerPing.Protocol(
-+                "", //leave version blank, we do multi-version.
++                ProtocolConstants.PE_VERSION_STRING,
 +                ProtocolConstants.MINECRAFT_PE_1_11 + ProtocolConstants.PE_PROTOCOL_OFFSET
 +        );
 +        final ServerPing.Players players = new ServerPing.Players(
@@ -3136,15 +3137,18 @@ index 00000000..ba95aaff
 +                response = "";
 +            } else {
 +                final ServerPing result = event.getResponse();
-+                response = String.join(";",
-+                        "MCPE",
-+                        result.getDescriptionComponent().toLegacyText().replace(";", "\\;"),
-+                        String.valueOf(result.getVersion().getProtocol()),
-+                        result.getVersion().getName(),
-+                        String.valueOf(result.getPlayers().getOnline()),
-+                        String.valueOf(result.getPlayers().getMax()),
-+                        String.valueOf(config.getServerId())
-+                );
++                StringJoiner joiner = new StringJoiner(";");
++                joiner.add("MCPE");
++                joiner.add(result.getDescriptionComponent().toLegacyText().replace(";", "\\;")); // MOTD
++                joiner.add(Integer.toString(result.getVersion().getProtocol())); // Protocol id
++                joiner.add(result.getVersion().getName()); // Game version
++                joiner.add(Integer.toString(result.getPlayers().getOnline())); // Player count
++                joiner.add(Integer.toString(result.getPlayers().getMax())); // Max players
++                joiner.add(Long.toString(config.getServerId())); // Server guid
++                joiner.add("Waterdog"); // Sub-motd
++                joiner.add("Survival"); // Game type
++                joiner.add("1"); // Nintendo limited
++                response = joiner.toString();
 +            }
 +            final Packet pong = new UnconnectedPong(clientTime, config.getServerId(), config.getMagic(), response);
 +            final ByteBuf tmpBuf = ctx.alloc().ioBuffer(pong.sizeHint());
