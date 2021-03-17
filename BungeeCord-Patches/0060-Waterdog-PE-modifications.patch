@@ -1,4 +1,4 @@
-From a3d6853a4cdd3889ad3f4742f7a61465825ec6a2 Mon Sep 17 00:00:00 2001
+From e38a2d0b89143f0de590244da7cf31d33c94cffe Mon Sep 17 00:00:00 2001
 From: Colin Godsey <crgodsey@gmail.com>
 Date: Tue, 16 Apr 2019 07:50:25 -0600
 Subject: [PATCH] Waterdog PE (modifications)
@@ -2038,7 +2038,7 @@ index 007d3daf..807f512e 100644
  
      @Override
 diff --git a/proxy/src/main/java/net/md_5/bungee/connection/UpstreamBridge.java b/proxy/src/main/java/net/md_5/bungee/connection/UpstreamBridge.java
-index 4d8bac5d..e0a7e785 100644
+index 4d8bac5d..8333d642 100644
 --- a/proxy/src/main/java/net/md_5/bungee/connection/UpstreamBridge.java
 +++ b/proxy/src/main/java/net/md_5/bungee/connection/UpstreamBridge.java
 @@ -96,6 +96,11 @@ public class UpstreamBridge extends PacketHandler
@@ -2090,7 +2090,7 @@ index 4d8bac5d..e0a7e785 100644
          if ( keepAliveData != null && alive.getRandomId() == keepAliveData.getId() )
          {
              int newPing = (int) ( System.currentTimeMillis() - keepAliveData.getTime() );
-@@ -138,11 +166,42 @@ public class UpstreamBridge extends PacketHandler
+@@ -138,11 +166,40 @@ public class UpstreamBridge extends PacketHandler
          }
      }
  
@@ -2106,8 +2106,6 @@ index 4d8bac5d..e0a7e785 100644
 +    @Override
 +    public void handle(network.ycc.waterdog.pe.packet.PECommand command) throws Exception
 +    {
-+        int maxLength = 256;
-+        Preconditions.checkArgument( command.getMessage().length() <= maxLength, "PECommand message too long" ); // Mojang limit, check on updates
 +        Preconditions.checkArgument(!StringUtil.isBlank(command.getMessage()), "PECommand message is empty");
 +
 +        ChatEvent chatEvent = new ChatEvent( con, con.getServer(), command.getMessage() );
