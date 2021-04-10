@@ -1,4 +1,4 @@
-From e9f88252c60d91dbc018d660aaaabc815e051a93 Mon Sep 17 00:00:00 2001
+From abc2de6142df6f456f811d7ebf7993b6659c918d Mon Sep 17 00:00:00 2001
 From: Colin Godsey <crgodsey@gmail.com>
 Date: Tue, 16 Apr 2019 07:50:25 -0600
 Subject: [PATCH] Waterdog PE (native modifications)
@@ -508,10 +508,32 @@ index a6d7cfb5..a0373049 100644
      }
  }
 diff --git a/native/src/main/java/net/md_5/bungee/jni/cipher/BungeeCipher.java b/native/src/main/java/net/md_5/bungee/jni/cipher/BungeeCipher.java
-index f71cf9c9..0dcc79d6 100644
+index f71cf9c9..f2b2849f 100644
 --- a/native/src/main/java/net/md_5/bungee/jni/cipher/BungeeCipher.java
 +++ b/native/src/main/java/net/md_5/bungee/jni/cipher/BungeeCipher.java
-@@ -18,4 +18,14 @@ public interface BungeeCipher
+@@ -3,19 +3,35 @@ package net.md_5.bungee.jni.cipher;
+ import io.netty.buffer.ByteBuf;
+ import io.netty.channel.ChannelHandlerContext;
+ import java.security.GeneralSecurityException;
++import java.security.spec.AlgorithmParameterSpec;
+ import javax.crypto.SecretKey;
+ 
+ /**
+  * Class to expose cipher methods from either native or fallback Java cipher.
+  */
+-public interface BungeeCipher
+-{
++public interface BungeeCipher {
+ 
+-    void init(boolean forEncryption, SecretKey key) throws GeneralSecurityException;
++    default void init(boolean forEncryption, SecretKey key) throws GeneralSecurityException {
++        this.init(forEncryption, key, null);
++    }
++
++    void init(boolean forEncryption, SecretKey key, AlgorithmParameterSpec param) throws GeneralSecurityException;
+ 
+     void free();
+ 
      void cipher(ByteBuf in, ByteBuf out) throws GeneralSecurityException;
  
      ByteBuf cipher(ChannelHandlerContext ctx, ByteBuf in) throws GeneralSecurityException;
@@ -524,13 +546,15 @@ index f71cf9c9..0dcc79d6 100644
 +    void digest(ByteBuf out);
 +
 +    void staticPEHash(long counter, ByteBuf in, ByteBuf key, ByteBuf out);
++
++    boolean isGcm();
 +    // Waterdog end
  }
 diff --git a/native/src/main/java/net/md_5/bungee/jni/cipher/JavaCipher.java b/native/src/main/java/net/md_5/bungee/jni/cipher/JavaCipher.java
-index d211cef6..ba8d6bcd 100644
+index d211cef6..ffb8fd4d 100644
 --- a/native/src/main/java/net/md_5/bungee/jni/cipher/JavaCipher.java
 +++ b/native/src/main/java/net/md_5/bungee/jni/cipher/JavaCipher.java
-@@ -3,17 +3,27 @@ package net.md_5.bungee.jni.cipher;
+@@ -3,17 +3,30 @@ package net.md_5.bungee.jni.cipher;
  import io.netty.buffer.ByteBuf;
  import io.netty.channel.ChannelHandlerContext;
  import java.security.GeneralSecurityException;
@@ -542,6 +566,8 @@ index d211cef6..ba8d6bcd 100644
  
 +// Wateredog start
 +import java.security.MessageDigest;
++import java.security.spec.AlgorithmParameterSpec;
++import java.util.Arrays;
 +
 +import io.netty.buffer.Unpooled;
 +
@@ -554,30 +580,57 @@ index d211cef6..ba8d6bcd 100644
      private final Cipher cipher;
      private static final ThreadLocal<byte[]> heapInLocal = new EmptyByteThreadLocal();
      private static final ThreadLocal<byte[]> heapOutLocal = new EmptyByteThreadLocal();
-+    private MessageDigest digest; // Waterdog
++    private final boolean gcm;
++    private MessageDigest digest;
  
      private static class EmptyByteThreadLocal extends ThreadLocal<byte[]>
      {
-@@ -28,13 +38,14 @@ public class JavaCipher implements BungeeCipher
-     public JavaCipher() throws GeneralSecurityException
-     {
-         this.cipher = Cipher.getInstance( "AES/CFB8/NoPadding" );
-+        digest = MessageDigest.getInstance("SHA-256"); // Waterdog
+@@ -25,16 +38,33 @@ public class JavaCipher implements BungeeCipher
+         }
+     }
+ 
+-    public JavaCipher() throws GeneralSecurityException
+-    {
+-        this.cipher = Cipher.getInstance( "AES/CFB8/NoPadding" );
++    public JavaCipher() throws GeneralSecurityException {
++        this(false);
++    }
++
++    public JavaCipher(boolean gcm) throws GeneralSecurityException {
++        String algorithm;
++        if (gcm) {
++            algorithm = "AES/CTR/NoPadding";
++        } else {
++            algorithm = "AES/CFB8/NoPadding";
++        }
++
++        this.gcm = gcm;
++        this.digest = MessageDigest.getInstance("SHA-256");
++        this.cipher = Cipher.getInstance(algorithm);
      }
  
      @Override
-     public void init(boolean forEncryption, SecretKey key) throws GeneralSecurityException
-     {
-         int mode = forEncryption ? Cipher.ENCRYPT_MODE : Cipher.DECRYPT_MODE;
+-    public void init(boolean forEncryption, SecretKey key) throws GeneralSecurityException
+-    {
+-        int mode = forEncryption ? Cipher.ENCRYPT_MODE : Cipher.DECRYPT_MODE;
 -        cipher.init( mode, key, new IvParameterSpec( key.getEncoded() ) );
-+        cipher.init( mode, key, new IvParameterSpec( java.util.Arrays.copyOf(key.getEncoded(), 16) ) ); // Waterdog
++    public void init(boolean forEncryption, SecretKey key, AlgorithmParameterSpec param) throws GeneralSecurityException {
++        if (this.gcm && param == null) {
++            throw new IllegalArgumentException("IvParameterSpec must be specified for GCM encryption!");
++        }
++
++        if (param == null) {
++            param = new IvParameterSpec(Arrays.copyOf(key.getEncoded(), 16));
++        }
++        this.cipher.init(forEncryption ? Cipher.ENCRYPT_MODE : Cipher.DECRYPT_MODE, key, param);
      }
  
      @Override
-@@ -82,4 +93,42 @@ public class JavaCipher implements BungeeCipher
+@@ -82,4 +112,46 @@ public class JavaCipher implements BungeeCipher
          in.readBytes( heapIn, 0, readableBytes );
          return heapIn;
      }
+-}
 +
 +    // Waterdog start
 +    public void update(byte in) {
@@ -615,22 +668,41 @@ index d211cef6..ba8d6bcd 100644
 +
 +        key.resetReaderIndex();
 +    }
-+    // Waterdog end
- }
++
++    @Override
++    public boolean isGcm() {
++        return this.gcm;
++    }
++}
+\ No newline at end of file
 diff --git a/native/src/main/java/net/md_5/bungee/jni/cipher/NativeCipher.java b/native/src/main/java/net/md_5/bungee/jni/cipher/NativeCipher.java
-index 7797a46b..4feeaf72 100644
+index 7797a46b..a2bc7e64 100644
 --- a/native/src/main/java/net/md_5/bungee/jni/cipher/NativeCipher.java
 +++ b/native/src/main/java/net/md_5/bungee/jni/cipher/NativeCipher.java
-@@ -18,7 +18,7 @@ public class NativeCipher implements BungeeCipher
-     @Override
-     public void init(boolean forEncryption, SecretKey key) throws GeneralSecurityException
-     {
--        Preconditions.checkArgument( key.getEncoded().length == 16, "Invalid key size" );
-+        Preconditions.checkArgument( key.getEncoded().length == 16 || key.getEncoded().length == 32, "Invalid key size" ); // Waterdog
-         free();
+@@ -4,6 +4,7 @@ import com.google.common.base.Preconditions;
+ import io.netty.buffer.ByteBuf;
+ import io.netty.channel.ChannelHandlerContext;
+ import java.security.GeneralSecurityException;
++import java.security.spec.AlgorithmParameterSpec;
+ import javax.crypto.SecretKey;
+ import lombok.Getter;
  
+@@ -16,11 +17,9 @@ public class NativeCipher implements BungeeCipher
+     private long ctx;
+ 
+     @Override
+-    public void init(boolean forEncryption, SecretKey key) throws GeneralSecurityException
+-    {
+-        Preconditions.checkArgument( key.getEncoded().length == 16, "Invalid key size" );
+-        free();
+-
++    public void init(boolean forEncryption, SecretKey key, AlgorithmParameterSpec param) throws GeneralSecurityException {
++        Preconditions.checkArgument( key.getEncoded().length == 16 || key.getEncoded().length == 32, "Invalid key size");
++        this.free();
          this.ctx = nativeCipher.init( forEncryption, key.getEncoded() );
-@@ -71,4 +71,62 @@ public class NativeCipher implements BungeeCipher
+     }
+ 
+@@ -71,4 +70,69 @@ public class NativeCipher implements BungeeCipher
  
          return heapOut;
      }
@@ -691,6 +763,13 @@ index 7797a46b..4feeaf72 100644
 +        out.writerIndex(out.writerIndex() + 32);
 +        in.readerIndex(in.readerIndex() + in.readableBytes());
 +    }
++
++    @Override
++    public boolean isGcm() {
++        // TODO: support
++        return false;
++    }
++
 +    // Waterdog end
  }
 diff --git a/native/src/main/java/net/md_5/bungee/jni/cipher/NativeCipherImpl.java b/native/src/main/java/net/md_5/bungee/jni/cipher/NativeCipherImpl.java
@@ -762,5 +841,5 @@ index f1f3b1e3..e0e11d5c 100644
      public void process(ByteBuf in, ByteBuf out) throws DataFormatException
      {
 -- 
-2.17.2 (Apple Git-113)
+2.23.0.windows.1
 

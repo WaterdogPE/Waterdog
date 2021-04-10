@@ -1,4 +1,4 @@
-From 3fb256dd9a1dcfb940e64945486a3a21c24a8aa1 Mon Sep 17 00:00:00 2001
+From 50d8531d0684c6a130619f39f5123e325d5dc508 Mon Sep 17 00:00:00 2001
 From: Colin Godsey <crgodsey@gmail.com>
 Date: Tue, 16 Apr 2019 07:50:25 -0600
 Subject: [PATCH] Waterdog PE (modifications)
@@ -1265,7 +1265,7 @@ index 7b002089..ea0f4d5c 100644
      public void addPlayer(ProxiedPlayer player)
      {
 diff --git a/proxy/src/main/java/net/md_5/bungee/ServerConnector.java b/proxy/src/main/java/net/md_5/bungee/ServerConnector.java
-index 35a19224..3f424e41 100644
+index 35a19224..846575dd 100644
 --- a/proxy/src/main/java/net/md_5/bungee/ServerConnector.java
 +++ b/proxy/src/main/java/net/md_5/bungee/ServerConnector.java
 @@ -54,6 +54,8 @@ import net.md_5.bungee.protocol.packet.SetCompression;
@@ -1360,9 +1360,9 @@ index 35a19224..3f424e41 100644
 +    }
 +
 +    @Override
-+    public void handle(network.ycc.waterdog.pe.packet.PEEncryptionRequest request) throws Exception
-+    {
-+        ch.getHandle().pipeline().addLast(new network.ycc.waterdog.pe.PEEncryptionInitializer(request));
++    public void handle(network.ycc.waterdog.pe.packet.PEEncryptionRequest request) throws Exception {
++        int protocolVersion = this.user.getPendingConnection().getVersion();
++        ch.getHandle().pipeline().addLast(new network.ycc.waterdog.pe.PEEncryptionInitializer(request, protocolVersion));
 +        ch.write(new network.ycc.waterdog.pe.packet.PEEncryptionResponse());
 +        throw CancelSendSignal.INSTANCE;
 +    }
@@ -1852,7 +1852,7 @@ index d7d0fafc..7bc67b64 100644
              {
                  ServerInfo info = bungee.getServerInfo( in.readUTF() );
 diff --git a/proxy/src/main/java/net/md_5/bungee/connection/InitialHandler.java b/proxy/src/main/java/net/md_5/bungee/connection/InitialHandler.java
-index 007d3daf..807f512e 100644
+index 007d3daf..7e5e4abd 100644
 --- a/proxy/src/main/java/net/md_5/bungee/connection/InitialHandler.java
 +++ b/proxy/src/main/java/net/md_5/bungee/connection/InitialHandler.java
 @@ -99,6 +99,10 @@ public class InitialHandler extends PacketHandler implements PendingConnection
@@ -1939,7 +1939,7 @@ index 007d3daf..807f512e 100644
 +                    if (onlineMode && BungeeCord.getInstance().config.isBedrockEncryption() && peHandshake.isAuthorized()) {
 +                        try {
 +                            network.ycc.waterdog.pe.PEEncryptionInitializer initializer =
-+                                    new network.ycc.waterdog.pe.PEEncryptionInitializer(peHandshake.getPublicKey());
++                                    new network.ycc.waterdog.pe.PEEncryptionInitializer(peHandshake.getPublicKey(), getVersion());
 +                            unsafe().sendPacket(initializer.getRequest());
 +                            ch.getHandle().flush();
 +                            ch.getHandle().pipeline().addLast(initializer);

@@ -1,4 +1,4 @@
-From 85570cd36894640be05d1985f4abc01f70d0b378 Mon Sep 17 00:00:00 2001
+From a4107907ec5b09f14b3be3e562454c1f32965d80 Mon Sep 17 00:00:00 2001
 From: Colin Godsey <crgodsey@gmail.com>
 Date: Tue, 16 Apr 2019 07:50:11 -0600
 Subject: [PATCH] Waterdog PE (additions)
@@ -2274,10 +2274,10 @@ index 00000000..4f50e2e3
 +}
 diff --git a/proxy/src/main/java/network/ycc/waterdog/pe/PEEncryptionInitializer.java b/proxy/src/main/java/network/ycc/waterdog/pe/PEEncryptionInitializer.java
 new file mode 100644
-index 00000000..366103e9
+index 00000000..79dd9188
 --- /dev/null
 +++ b/proxy/src/main/java/network/ycc/waterdog/pe/PEEncryptionInitializer.java
-@@ -0,0 +1,210 @@
+@@ -0,0 +1,216 @@
 +package network.ycc.waterdog.pe;
 +
 +import com.google.gson.JsonObject;
@@ -2298,11 +2298,11 @@ index 00000000..366103e9
 +
 +import lombok.Getter;
 +
-+import net.md_5.bungee.EncryptionUtil;
 +import net.md_5.bungee.jni.cipher.BungeeCipher;
 +import net.md_5.bungee.jni.cipher.NativeCipher;
 +import net.md_5.bungee.netty.PipelineUtils;
 +
++import net.md_5.bungee.protocol.ProtocolConstants;
 +import network.ycc.waterdog.pe.packet.PEEncryptionRequest;
 +
 +import javax.crypto.KeyAgreement;
@@ -2319,41 +2319,47 @@ index 00000000..366103e9
 +
 +    @Getter
 +    private final PEEncryptionRequest request;
++    private final int protocolVersion;
 +    private final byte[] keyBytes;
 +    private final SecretKeySpec serverKey;
 +    private ByteBuf hashBuffer;
 +    private ByteBuf keyBuffer;
 +    private int hashBufferReader;
 +
-+    public PEEncryptionInitializer(PublicKey publicKey) throws NoSuchAlgorithmException, InvalidKeyException {
-+        final MessageDigest digest = MessageDigest.getInstance("SHA-256");
-+        final JsonObject additionalData = new JsonObject();
-+        final String saltString = createSalt();
-+        final KeyAgreement ka = KeyAgreement.getInstance("ECDH");
-+        ka.init(PEEncryptionUtils.getKeyPair().getPrivate());
-+        ka.doPhase(publicKey, true);
++    public PEEncryptionInitializer(PublicKey publicKey, int protocolVersion) throws NoSuchAlgorithmException, InvalidKeyException {
++        MessageDigest digest = MessageDigest.getInstance("SHA-256");
++        JsonObject additionalData = new JsonObject();
++        String saltString = createSalt();
++        KeyAgreement keyAgreement = KeyAgreement.getInstance("ECDH");
++
++        keyAgreement.init(PEEncryptionUtils.getKeyPair().getPrivate());
++        keyAgreement.doPhase(publicKey, true);
 +        digest.update(Base64.getDecoder().decode(saltString));
-+        digest.update(ka.generateSecret());
++        digest.update(keyAgreement.generateSecret());
 +        additionalData.addProperty("salt", saltString);
-+        keyBytes = digest.digest();
-+        serverKey = new SecretKeySpec(keyBytes, "AES");
-+        request = new PEEncryptionRequest(PEEncryptionUtils.encodeJWT(additionalData));
++
++        this.keyBytes = digest.digest();
++        this.serverKey = new SecretKeySpec(keyBytes, "AES");
++        this.request = new PEEncryptionRequest(PEEncryptionUtils.encodeJWT(additionalData));
++        this.protocolVersion = protocolVersion;
 +    }
 +
-+    public PEEncryptionInitializer(PEEncryptionRequest request) throws NoSuchAlgorithmException, ParseException,
-+            InvalidKeySpecException, InvalidKeyException {
-+        final MessageDigest digest = MessageDigest.getInstance("SHA-256");
-+        final JWSObject additionalData = JWSObject.parse(request.getJwtData());
-+        final PublicKey publicKey = PEEncryptionUtils.parseKey(additionalData.getHeader().getX509CertURL().toString());
-+        final String saltString = additionalData.getPayload().toJSONObject().getAsString("salt");
-+        final KeyAgreement ka = KeyAgreement.getInstance("ECDH");
-+        ka.init(PEEncryptionUtils.getKeyPair().getPrivate());
-+        ka.doPhase(publicKey, true);
++    public PEEncryptionInitializer(PEEncryptionRequest request, int protocolVersion) throws NoSuchAlgorithmException, ParseException, InvalidKeySpecException, InvalidKeyException {
++        MessageDigest digest = MessageDigest.getInstance("SHA-256");
++        JWSObject additionalData = JWSObject.parse(request.getJwtData());
++        PublicKey publicKey = PEEncryptionUtils.parseKey(additionalData.getHeader().getX509CertURL().toString());
++        String saltString = additionalData.getPayload().toJSONObject().getAsString("salt");
++        KeyAgreement keyAgreement = KeyAgreement.getInstance("ECDH");
++
++        keyAgreement.init(PEEncryptionUtils.getKeyPair().getPrivate());
++        keyAgreement.doPhase(publicKey, true);
 +        digest.update(Base64.getDecoder().decode(saltString));
-+        digest.update(ka.generateSecret());
-+        keyBytes = digest.digest();
-+        serverKey = new SecretKeySpec(keyBytes, "AES");
++        digest.update(keyAgreement.generateSecret());
++
++        this.keyBytes = digest.digest();
++        this.serverKey = new SecretKeySpec(keyBytes, "AES");
 +        this.request = request;
++        this.protocolVersion = protocolVersion;
 +    }
 +
 +    protected static String createSalt() {
@@ -2362,20 +2368,18 @@ index 00000000..366103e9
 +        return Base64.getEncoder().encodeToString(out);
 +    }
 +
-+    protected void initChannel(Channel ch) throws Exception {
-+        hashBuffer = ch.alloc().directBuffer(32, 32);
-+        keyBuffer = ch.alloc().directBuffer(32, 32).writeBytes(keyBytes);
-+        hashBufferReader = hashBuffer.readerIndex();
++    protected void initChannel(Channel channel) throws Exception {
++        this.hashBuffer = channel.alloc().directBuffer(32, 32);
++        this.keyBuffer = channel.alloc().directBuffer(32, 32).writeBytes(keyBytes);
++        this.hashBufferReader = this.hashBuffer.readerIndex();
 +
-+        ch.pipeline().addBefore(PEDecompressor.NAME, PipelineUtils.DECRYPT_HANDLER,
-+                new PECipherDecoder());
-+        ch.pipeline().addBefore(PECompressor.NAME, PipelineUtils.ENCRYPT_HANDLER,
-+                new PECipherEncoder());
++        channel.pipeline().addBefore(PEDecompressor.NAME, PipelineUtils.DECRYPT_HANDLER, new PECipherDecoder());
++        channel.pipeline().addBefore(PECompressor.NAME, PipelineUtils.ENCRYPT_HANDLER, new PECipherEncoder());
 +    }
 +
 +    protected void destroy() {
-+        hashBuffer.release();
-+        keyBuffer.release();
++        this.hashBuffer.release();
++        this.keyBuffer.release();
 +    }
 +
 +    protected class PECipherDecoder extends ChannelInboundHandlerAdapter {
@@ -2383,12 +2387,13 @@ index 00000000..366103e9
 +        private final BungeeCipher cipher;
 +
 +        public PECipherDecoder() throws GeneralSecurityException {
-+            cipher = EncryptionUtil.getCipher(false, serverKey);
++            boolean gcm = protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_16_220;
++            this.cipher = PEEncryptionUtils.getCipher(false, serverKey, gcm);
 +        }
 +
 +        @Override
 +        public void handlerRemoved(ChannelHandlerContext ctx) {
-+            cipher.free();
++            this.cipher.free();
 +            destroy();
 +        }
 +
@@ -2401,8 +2406,8 @@ index 00000000..366103e9
 +                try {
 +                    final int readerIndex = data.readerIndex();
 +                    final int writerIndex = data.writerIndex();
-+                    PENativeExt.cipherInPlace(cipher, data);
-+                    createHash(cipher, data.readerIndex(readerIndex).writerIndex(writerIndex - HASH_LENGTH), counter++);
++                    PENativeExt.cipherInPlace(this.cipher, data);
++                    createHash(this.cipher, data.readerIndex(readerIndex).writerIndex(writerIndex - HASH_LENGTH), counter++);
 +                    data.writerIndex(writerIndex);
 +                    while (hashBuffer.isReadable()) {
 +                        if (data.readByte() != hashBuffer.readByte()) {
@@ -2436,7 +2441,8 @@ index 00000000..366103e9
 +        private final BungeeCipher cipher;
 +
 +        public PECipherEncoder() throws GeneralSecurityException {
-+            cipher = EncryptionUtil.getCipher(true, serverKey);
++            boolean gcm = protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_16_220;
++            this.cipher = PEEncryptionUtils.getCipher(true, serverKey, gcm);
 +        }
 +
 +        @Override
@@ -2452,10 +2458,10 @@ index 00000000..366103e9
 +                final ByteBuf hashChunk = ctx.alloc().directBuffer(32, 32);
 +                try {
 +                    final int readerIndex = data.readerIndex();
-+                    createHash(cipher, data, counter++, hashChunk);
++                    createHash(this.cipher, data, this.counter++, hashChunk);
 +                    data.readerIndex(readerIndex);
-+                    PENativeExt.cipherInPlace(cipher, data);
-+                    PENativeExt.cipherInPlace(cipher, hashChunk);
++                    PENativeExt.cipherInPlace(this.cipher, data);
++                    PENativeExt.cipherInPlace(this.cipher, hashChunk);
 +                    out.addComponent(true, data.retain());
 +                    out.addComponent(true, hashChunk.retain());
 +                    ctx.write(out.retain(), promise);
@@ -2473,8 +2479,7 @@ index 00000000..366103e9
 +    protected void createHash(BungeeCipher cipher, ByteBuf in, long counter) {
 +        hashBuffer.readerIndex(hashBufferReader);
 +        hashBuffer.writerIndex(hashBufferReader);
-+
-+        createHash(cipher, in, counter, hashBuffer);
++        this.createHash(cipher, in, counter, hashBuffer);
 +    }
 +
 +    protected void createHash(BungeeCipher cipher, ByteBuf in, long counter, ByteBuf out) {
@@ -2485,15 +2490,17 @@ index 00000000..366103e9
 +            cipher.staticPEHash(counter, in, keyBuffer, out);
 +        }
 +
-+        out.writerIndex(readerIndex + HASH_LENGTH); //need only the first 8 bytes
++        // Need only the first 8 bytes
++        out.writerIndex(readerIndex + HASH_LENGTH);
 +    }
 +}
+\ No newline at end of file
 diff --git a/proxy/src/main/java/network/ycc/waterdog/pe/PEEncryptionUtils.java b/proxy/src/main/java/network/ycc/waterdog/pe/PEEncryptionUtils.java
 new file mode 100644
-index 00000000..677f4205
+index 00000000..0d478996
 --- /dev/null
 +++ b/proxy/src/main/java/network/ycc/waterdog/pe/PEEncryptionUtils.java
-@@ -0,0 +1,297 @@
+@@ -0,0 +1,356 @@
 +package network.ycc.waterdog.pe;
 +
 +import com.google.common.base.Charsets;
@@ -2523,6 +2530,9 @@ index 00000000..677f4205
 +import io.netty.handler.codec.EncoderException;
 +
 +import net.md_5.bungee.BungeeCord;
++import net.md_5.bungee.EncryptionUtil;
++import net.md_5.bungee.jni.cipher.BungeeCipher;
++import net.md_5.bungee.jni.cipher.JavaCipher;
 +import net.md_5.bungee.protocol.DefinedPacket;
 +import net.md_5.bungee.protocol.ProtocolConstants;
 +
@@ -2531,33 +2541,36 @@ index 00000000..677f4205
 +import org.apache.commons.lang3.tuple.ImmutablePair;
 +import org.apache.commons.lang3.tuple.Pair;
 +
++import javax.crypto.SecretKey;
++import javax.crypto.spec.IvParameterSpec;
 +import java.io.InputStreamReader;
++import java.lang.reflect.Constructor;
++import java.lang.reflect.InvocationTargetException;
++import java.lang.reflect.Method;
 +import java.math.BigInteger;
 +import java.net.URI;
 +import java.nio.charset.StandardCharsets;
-+import java.security.KeyFactory;
-+import java.security.KeyPair;
-+import java.security.KeyPairGenerator;
-+import java.security.NoSuchAlgorithmException;
-+import java.security.PublicKey;
++import java.security.*;
 +import java.security.spec.InvalidKeySpecException;
 +import java.security.spec.X509EncodedKeySpec;
 +import java.text.ParseException;
-+import java.util.Base64;
-+import java.util.Collections;
-+import java.util.HashMap;
-+import java.util.List;
-+import java.util.Map;
-+import java.util.UUID;
++import java.util.*;
 +
 +public class PEEncryptionUtils {
 +    public static final String MOJANG_KEY = "MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAE8ELkixyLcwlZryUQcu1TvPOmI2B7vX83ndnWRUaXm74wFfa5f/lwQNTfrLVHa2PmenpGI6JhIMUJaWZrjmMj90NoKNFSNBuKdm8rYiXsfaz3K36x/1U26HpG0ZxK/V1V";
 +
-+    static final Gson GSON;
-+    static final DefaultJWSVerifierFactory jwsVerifierFactory;
-+    static final KeyPair keyPair;
-+    static final KeyFactory keyfactory;
-+    static final PublicKey mojangPublicKey;
++    private static final Gson GSON;
++    private static final DefaultJWSVerifierFactory jwsVerifierFactory;
++    private static final KeyPair keyPair;
++    private static final KeyFactory keyfactory;
++    private static final PublicKey mojangPublicKey;
++
++    private static final int AES_BLOCK_SIZE = 16;
++    private static final Method GCM_GET_J0;
++    private static final Method GCM_INCREMENT_32;
++    private static final Constructor<?> AES_CONSTRUCTOR;
++    private static final Method AES_INIT;
++    private static final Method AES_ENCRYPT_BLOCK;
 +
 +    static {
 +        GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -2579,6 +2592,23 @@ index 00000000..677f4205
 +        } catch (InvalidKeySpecException e) {
 +            throw new RuntimeException("Unable to init mojang key", e);
 +        }
++
++        try {
++            Class<?> clazz = Class.forName("com.sun.crypto.provider.GaloisCounterMode");
++            GCM_GET_J0 = clazz.getDeclaredMethod("getJ0", byte[].class, byte[].class);
++            GCM_GET_J0.setAccessible(true);
++            GCM_INCREMENT_32 = clazz.getDeclaredMethod("increment32", byte[].class);
++            GCM_INCREMENT_32.setAccessible(true);
++            Class<?> aesCryptClass = Class.forName("com.sun.crypto.provider.AESCrypt");
++            AES_CONSTRUCTOR = aesCryptClass.getDeclaredConstructor();
++            AES_CONSTRUCTOR.setAccessible(true);
++            AES_INIT = aesCryptClass.getDeclaredMethod("init", boolean.class, String.class, byte[].class);
++            AES_INIT.setAccessible(true);
++            AES_ENCRYPT_BLOCK = aesCryptClass.getDeclaredMethod("encryptBlock", byte[].class, int.class, byte[].class, int.class);
++            AES_ENCRYPT_BLOCK.setAccessible(true);
++        } catch (ClassNotFoundException | NoSuchMethodException e) {
++            throw new AssertionError(e);
++        }
 +    }
 +
 +    public static void parseHandshake(PEHandshake handshake) {
@@ -2589,7 +2619,7 @@ index 00000000..677f4205
 +        final ByteBuf jwsDataBytes = loginData.readSlice(loginData.readIntLE());
 +        final Pair<PublicKey, JsonObject> chainData = extractChainData(GSON.fromJson(
 +                new InputStreamReader(new ByteBufInputStream(chainDataBytes)),
-+                new TypeToken<Map<String, List<String>>>() {}.getType()
++                new TypeToken<Map<String, List<String>>>(){}.getType()
 +        ));
 +        final PublicKey key = chainData.getLeft();
 +        final JsonObject identityData = chainData.getRight();
@@ -2790,7 +2820,44 @@ index 00000000..677f4205
 +        out.addProperty("SelfSignedId", uuid.toString());
 +        return encodeJWT(out);
 +    }
++
++    public static BungeeCipher getCipher(boolean encrypt, SecretKey key, boolean gcm) throws GeneralSecurityException {
++        if (!gcm) {
++            return EncryptionUtil.getCipher(encrypt, key);
++        }
++
++        byte[] subKey = getSubKey(key.getEncoded());
++        byte[] iv = getGcmIv(subKey, Arrays.copyOf(key.getEncoded(), 12));
++
++        BungeeCipher cipher = new JavaCipher(true);
++        cipher.init(encrypt, key, new IvParameterSpec(iv));
++        return cipher;
++    }
++
++    public static byte[] getSubKey(byte[] key) {
++        try {
++            Object aesCrypt = AES_CONSTRUCTOR.newInstance();
++            AES_INIT.invoke(aesCrypt, false, "AES", key);
++            byte[] subKey = new byte[AES_BLOCK_SIZE];
++            AES_ENCRYPT_BLOCK.invoke(aesCrypt, new byte[AES_BLOCK_SIZE], 0, subKey, 0);
++
++            return subKey;
++        } catch (InvocationTargetException | IllegalAccessException | InstantiationException e) {
++            throw new AssertionError(e);
++        }
++    }
++
++    public static byte[] getGcmIv(byte[] subKey, byte[] iv) {
++        try {
++            byte[] counter = (byte[]) GCM_GET_J0.invoke(null, iv, subKey);
++            GCM_INCREMENT_32.invoke(null, (Object) counter);
++            return counter;
++        } catch (InvocationTargetException | IllegalAccessException e) {
++            throw new AssertionError(e);
++        }
++    }
 +}
+\ No newline at end of file
 diff --git a/proxy/src/main/java/network/ycc/waterdog/pe/PENativeExt.java b/proxy/src/main/java/network/ycc/waterdog/pe/PENativeExt.java
 new file mode 100644
 index 00000000..eddc3303
