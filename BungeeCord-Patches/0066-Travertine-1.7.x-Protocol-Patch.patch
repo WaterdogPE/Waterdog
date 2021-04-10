@@ -1,4 +1,4 @@
-From 1ac9b5d74461076a4dab18f3bb625f0da53c6249 Mon Sep 17 00:00:00 2001
+From 3b37040c24c8a44fa4cdadecc4a1d093c2474413 Mon Sep 17 00:00:00 2001
 From: Troy Frew <fuzzy_bot@arenaga.me>
 Date: Tue, 15 Nov 2016 10:31:04 -0500
 Subject: [PATCH] Travertine 1.7.x Protocol Patch
@@ -463,19 +463,19 @@ index a90e7d0b..be0494b1 100644
  
              java.util.function.Supplier<? extends DefinedPacket> constructor = protocolData.packetConstructors[id]; // Waterfall - speed up packet construction
 diff --git a/protocol/src/main/java/net/md_5/bungee/protocol/ProtocolConstants.java b/protocol/src/main/java/net/md_5/bungee/protocol/ProtocolConstants.java
-index 0896cf03..1c3b6b82 100644
+index 32af29f4..c5b70361 100644
 --- a/protocol/src/main/java/net/md_5/bungee/protocol/ProtocolConstants.java
 +++ b/protocol/src/main/java/net/md_5/bungee/protocol/ProtocolConstants.java
-@@ -25,6 +25,8 @@ public class ProtocolConstants
-     public static final int MINECRAFT_PE_1_16_200 = 422 - PE_PROTOCOL_OFFSET;
+@@ -26,6 +26,8 @@ public class ProtocolConstants
      public static final int MINECRAFT_PE_1_16_210 = 428 - PE_PROTOCOL_OFFSET;
+     public static final int MINECRAFT_PE_1_16_220 = 431 - PE_PROTOCOL_OFFSET;
      // Waterdog end
 +    public static final int MINECRAFT_1_7_2 = 4;
 +    public static final int MINECRAFT_1_7_6 = 5;
      public static final int MINECRAFT_1_8 = 47;
      public static final int MINECRAFT_1_9 = 107;
      public static final int MINECRAFT_1_9_1 = 108;
-@@ -59,6 +61,7 @@ public class ProtocolConstants
+@@ -60,6 +62,7 @@ public class ProtocolConstants
              "PE-1.15.x",
              "PE-1.16.x",
              // Waterdog end
@@ -483,9 +483,9 @@ index 0896cf03..1c3b6b82 100644
              "1.8.x",
              "1.9.x",
              "1.10.x",
-@@ -85,6 +88,8 @@ public class ProtocolConstants
-             ProtocolConstants.MINECRAFT_PE_1_16_200,
+@@ -87,6 +90,8 @@ public class ProtocolConstants
              ProtocolConstants.MINECRAFT_PE_1_16_210,
+             ProtocolConstants.MINECRAFT_PE_1_16_220,
              // Waterdog end
 +            ProtocolConstants.MINECRAFT_1_7_2,
 +            ProtocolConstants.MINECRAFT_1_7_6,
@@ -1619,7 +1619,7 @@ index 6df3f3dd..6cd71071 100644
          ( (BungeeServerInfo) target ).cachePing( serverPing );
          callback.done( serverPing, null );
 diff --git a/proxy/src/main/java/net/md_5/bungee/connection/UpstreamBridge.java b/proxy/src/main/java/net/md_5/bungee/connection/UpstreamBridge.java
-index e0a7e785..5ba431b9 100644
+index 8333d642..dd055924 100644
 --- a/proxy/src/main/java/net/md_5/bungee/connection/UpstreamBridge.java
 +++ b/proxy/src/main/java/net/md_5/bungee/connection/UpstreamBridge.java
 @@ -84,7 +84,12 @@ public class UpstreamBridge extends PacketHandler
