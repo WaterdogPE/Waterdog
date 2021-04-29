@@ -535,7 +535,7 @@ index cd987c8a..32af29f4 100644
  {
  
 +    // Waterdog start
-+    public static final String PE_VERSION_STRING = "1.16.210";
++    public static final String PE_VERSION_STRING = "1.16.220";
 +
 +    public static final int PE_PROTOCOL_OFFSET = 2000;
 +    public static final int MINECRAFT_PE_1_8 = 313 - PE_PROTOCOL_OFFSET;
