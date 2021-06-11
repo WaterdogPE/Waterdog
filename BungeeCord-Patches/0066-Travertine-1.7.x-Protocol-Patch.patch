@@ -1,4 +1,4 @@
-From 3671084137d16badb6178676263dc05b491fa8be Mon Sep 17 00:00:00 2001
+From b6a7d4ee7313fdb6ad48a12da4fae474a7b9d90c Mon Sep 17 00:00:00 2001
 From: Troy Frew <fuzzy_bot@arenaga.me>
 Date: Tue, 15 Nov 2016 10:31:04 -0500
 Subject: [PATCH] Travertine 1.7.x Protocol Patch
@@ -1355,7 +1355,7 @@ index 491cf1a1..299a216c 100644
      }
  }
 diff --git a/proxy/src/main/java/net/md_5/bungee/ServerConnector.java b/proxy/src/main/java/net/md_5/bungee/ServerConnector.java
-index 846575dd..d88c5fc9 100644
+index 602893fa..97624141 100644
 --- a/proxy/src/main/java/net/md_5/bungee/ServerConnector.java
 +++ b/proxy/src/main/java/net/md_5/bungee/ServerConnector.java
 @@ -6,6 +6,7 @@ import io.netty.buffer.ByteBufAllocator;
@@ -1400,7 +1400,7 @@ index 846575dd..d88c5fc9 100644
              }
              for ( Score score : serverScoreboard.getScores() )
              {
-@@ -568,6 +579,14 @@ public class ServerConnector extends PacketHandler
+@@ -569,6 +580,14 @@ public class ServerConnector extends PacketHandler
              {
                  this.handshakeHandler.handle( pluginMessage );
  

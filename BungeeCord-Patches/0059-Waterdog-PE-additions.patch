@@ -1,4 +1,4 @@
-From a4107907ec5b09f14b3be3e562454c1f32965d80 Mon Sep 17 00:00:00 2001
+From fa3c446bb5a5dfd396c31c2e788c475b68420d57 Mon Sep 17 00:00:00 2001
 From: Colin Godsey <crgodsey@gmail.com>
 Date: Tue, 16 Apr 2019 07:50:11 -0600
 Subject: [PATCH] Waterdog PE (additions)
@@ -266,12 +266,82 @@ index 00000000..9d983810
 +        }
 +    }
 +}
+diff --git a/protocol/src/main/java/network/ycc/waterdog/pe/PEGameRule.java b/protocol/src/main/java/network/ycc/waterdog/pe/PEGameRule.java
+new file mode 100644
+index 00000000..40230e0e
+--- /dev/null
++++ b/protocol/src/main/java/network/ycc/waterdog/pe/PEGameRule.java
+@@ -0,0 +1,63 @@
++package network.ycc.waterdog.pe;
++
++import io.netty.buffer.ByteBuf;
++import lombok.Data;
++import net.md_5.bungee.protocol.DefinedPacket;
++import net.md_5.bungee.protocol.ProtocolConstants;
++
++@Data
++public class PEGameRule {
++
++    public static final int TYPE_BOOL = 1;
++    public static final int TYPE_INT = 2;
++    public static final int TYPE_FLOAT = 3;
++
++    private String name;
++    private int type;
++
++    private boolean canBeModified;
++    private Object value;
++
++    public void read(ByteBuf buffer, int protocolVersion) {
++        this.name = DefinedPacket.readString(buffer);
++        if (protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_17_0) {
++            this.canBeModified = buffer.readBoolean();
++        }
++        this.type = DefinedPacket.readVarInt(buffer);
++
++        switch (this.type) {
++            case TYPE_BOOL:
++                this.value = buffer.readBoolean();
++                break;
++            case TYPE_INT:
++                this.value = DefinedPacket.readVarInt(buffer);
++                break;
++            case TYPE_FLOAT:
++                this.value = buffer.readFloatLE();
++                break;
++            default:
++                throw new IllegalArgumentException("Unknown game rule type " + this.type);
++        }
++    }
++
++    public void write(ByteBuf buffer, int protocolVersion) {
++        DefinedPacket.writeString(this.name, buffer);
++        if (protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_17_0) {
++            buffer.writeBoolean(this.canBeModified);
++        }
++        DefinedPacket.writeVarInt(this.type, buffer);
++
++        switch (this.type) {
++            case TYPE_BOOL:
++                buffer.writeBoolean((boolean) this.value);
++                break;
++            case TYPE_INT:
++                DefinedPacket.writeVarInt((int) this.value, buffer);
++                break;
++            case TYPE_FLOAT:
++                buffer.writeFloatLE((float) this.value);
++                break;
++        }
++    }
++
++}
+\ No newline at end of file
 diff --git a/protocol/src/main/java/network/ycc/waterdog/pe/PERawPacketData.java b/protocol/src/main/java/network/ycc/waterdog/pe/PERawPacketData.java
 new file mode 100644
-index 00000000..89751905
+index 00000000..2f70e3f1
 --- /dev/null
 +++ b/protocol/src/main/java/network/ycc/waterdog/pe/PERawPacketData.java
-@@ -0,0 +1,219 @@
+@@ -0,0 +1,210 @@
 +package network.ycc.waterdog.pe;
 +
 +import com.google.common.base.Preconditions;
@@ -283,6 +353,7 @@ index 00000000..89751905
 +import net.md_5.bungee.protocol.DefinedPacket;
 +import net.md_5.bungee.protocol.ProtocolConstants;
 +
++import java.util.Collection;
 +import java.util.Map;
 +import java.util.UUID;
 +
@@ -448,24 +519,14 @@ index 00000000..89751905
 +        channel.write(removeEntityEffect);
 +    }
 +
-+    public static void injectSetGameRule(Channel channel, final Map<String, Object> rules){
++    public static void injectSetGameRule(Channel channel, Collection<PEGameRule> gameRules, int protocolVersion){
 +        final ByteBuf gameRulePacket = channel.alloc().ioBuffer();
 +        DefinedPacket.writeVarInt(0x48, gameRulePacket); // GameRulesChangedPacket
-+        DefinedPacket.writeVarInt(rules.size(), gameRulePacket);
-+        rules.forEach((String rule, Object value)->{
-+            DefinedPacket.writeString(rule, gameRulePacket);
++        DefinedPacket.writeVarInt(gameRules.size(), gameRulePacket);
 +
-+            if (value instanceof Byte){
-+                DefinedPacket.writeVarInt(1, gameRulePacket);
-+                gameRulePacket.writeByte((byte) value);
-+            }else if (value instanceof Integer){
-+                DefinedPacket.writeVarInt(2, gameRulePacket);
-+                DefinedPacket.writeSVarInt((int) value, gameRulePacket);
-+            }else if (value instanceof Float){
-+                DefinedPacket.writeVarInt(3, gameRulePacket);
-+                gameRulePacket.writeFloatLE((float) value);
-+            }
-+        });
++        for (PEGameRule gameRule : gameRules) {
++            gameRule.write(gameRulePacket, protocolVersion);
++        }
 +        channel.write(gameRulePacket);
 +    }
 +
@@ -731,10 +792,10 @@ index 00000000..e0c0b55f
 +}
 diff --git a/protocol/src/main/java/network/ycc/waterdog/pe/packet/PELogin.java b/protocol/src/main/java/network/ycc/waterdog/pe/packet/PELogin.java
 new file mode 100644
-index 00000000..2f6d4baa
+index 00000000..ab5915b9
 --- /dev/null
 +++ b/protocol/src/main/java/network/ycc/waterdog/pe/packet/PELogin.java
-@@ -0,0 +1,236 @@
+@@ -0,0 +1,221 @@
 +package network.ycc.waterdog.pe.packet;
 +
 +import com.nukkitx.nbt.NbtUtils;
@@ -751,9 +812,12 @@ index 00000000..2f6d4baa
 +import net.md_5.bungee.protocol.packet.Login;
 +
 +import network.ycc.waterdog.pe.PEDataValues;
++import network.ycc.waterdog.pe.PEGameRule;
 +
 +import java.io.IOException;
++import java.util.ArrayList;
 +import java.util.HashMap;
++import java.util.List;
 +import java.util.Map;
 +
 +@Data
@@ -766,7 +830,7 @@ index 00000000..2f6d4baa
 +    private byte[] tailPayload;
 +    private int payloadPaletteOffset; // Offset of tailPayload for the palette
 +    private int payloadPaletteLength;
-+    private Map<String, Object> rules = new HashMap<>();
++    private List<PEGameRule> gameRules = new ArrayList<>();
 +
 +    public PELogin(int entityId, short gameMode, int dimension, short difficulty, short maxPlayers, String levelType, int viewDistance, boolean reducedDebugInfo, byte[] tailPayload) {
 +        super(entityId, gameMode, dimension, 0, difficulty, maxPlayers, levelType, viewDistance, reducedDebugInfo, true);
@@ -824,29 +888,11 @@ index 00000000..2f6d4baa
 +        buf.readBoolean(); // Commands enabled
 +        buf.readBoolean(); // Needs texture pack
 +
-+        final int nGameRules = DefinedPacket.readVarInt(buf); // Game rules
-+        for (int i = 0 ; i < nGameRules ; i++) {
-+            String rule = DefinedPacket.readString(buf);
-+            Object value;
-+
-+            final int grType = DefinedPacket.readVarInt(buf);
-+            switch (grType) {
-+                case 1: {
-+                    value = buf.readByte();
-+                    break;
-+                }
-+                case 2: {
-+                    value = DefinedPacket.readSVarInt(buf);
-+                    break;
-+                }
-+                case 3: {
-+                    value = buf.readFloatLE();
-+                    break;
-+                }
-+                default:
-+                    throw new IllegalArgumentException("Unknown game rule type " + grType);
-+            }
-+            rules.put(rule, value);
++        int gameRulesCount = DefinedPacket.readVarInt(buf);
++        for (int i = 0; i < gameRulesCount; i++) {
++            PEGameRule gameRule = new PEGameRule();
++            gameRule.read(buf, protocolVersion);
++            this.gameRules.add(gameRule);
 +        }
 +
 +        if (protocolVersion >= ProtocolConstants.MINECRAFT_PE_1_16_100) {

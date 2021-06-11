@@ -1,4 +1,4 @@
-From 454ec48e26e3425d649e835789d49842e303e514 Mon Sep 17 00:00:00 2001
+From a93d0f692cda2604a57ed9ee514d2b5d6230319a Mon Sep 17 00:00:00 2001
 From: Colin Godsey <crgodsey@gmail.com>
 Date: Tue, 16 Apr 2019 07:50:25 -0600
 Subject: [PATCH] Waterdog PE (modifications)
@@ -1268,7 +1268,7 @@ index 7b002089..ea0f4d5c 100644
      public void addPlayer(ProxiedPlayer player)
      {
 diff --git a/proxy/src/main/java/net/md_5/bungee/ServerConnector.java b/proxy/src/main/java/net/md_5/bungee/ServerConnector.java
-index 35a19224..846575dd 100644
+index 35a19224..602893fa 100644
 --- a/proxy/src/main/java/net/md_5/bungee/ServerConnector.java
 +++ b/proxy/src/main/java/net/md_5/bungee/ServerConnector.java
 @@ -54,6 +54,8 @@ import net.md_5.bungee.protocol.packet.SetCompression;
@@ -1456,7 +1456,7 @@ index 35a19224..846575dd 100644
              if ( !user.isDisableEntityMetadataRewrite() ) { // Waterfall
              for ( Objective objective : serverScoreboard.getObjectives() )
              {
-@@ -328,6 +425,44 @@ public class ServerConnector extends PacketHandler
+@@ -328,6 +425,45 @@ public class ServerConnector extends PacketHandler
              }
              user.setDimension( login.getDimension() );
  
@@ -1471,13 +1471,14 @@ index 35a19224..846575dd 100644
 +                server.unsafe().sendPacket(new network.ycc.waterdog.pe.packet.PELocalPlayerInitialized(user.getClientEntityId()));
 +
 +                // Since 419 block palette is not sent by server
-+                if (user.getPendingConnection().getVersion() < ProtocolConstants.MINECRAFT_PE_1_16_100){
++                int protocol = user.getPendingConnection().getVersion();
++                if (protocol < ProtocolConstants.MINECRAFT_PE_1_16_100){
 +                    ByteBuf paletteData = io.netty.buffer.Unpooled.wrappedBuffer(peLogin.getTailPayload())
 +                            .skipBytes(peLogin.getPayloadPaletteOffset())
 +                            .readSlice(peLogin.getPayloadPaletteLength());
 +
 +                    network.ycc.waterdog.pe.PEBlockPalette palette = network.ycc.waterdog.pe.PEBlockPalette.get(
-+                            paletteData, user.getPendingConnection().getVersion());
++                            paletteData, protocol);
 +                    user.setBlockRewrite(palette.createRewrite(user.getClientBlockPalette()));
 +                }
 +
@@ -1493,7 +1494,7 @@ index 35a19224..846575dd 100644
 +                user.unsafe().sendPacket( new network.ycc.waterdog.pe.packet.PEStopSoundPacket( "portal.travel", true ) );
 +
 +                network.ycc.waterdog.pe.PERawPacketData.injectRemoveAllEffects(user.getCh().getHandle(), user.getClientEntityId());
-+                network.ycc.waterdog.pe.PERawPacketData.injectSetGameRule(user.getCh().getHandle(), ((PELogin) login).getRules());
++                network.ycc.waterdog.pe.PERawPacketData.injectSetGameRule(user.getCh().getHandle(), ((PELogin) login).getGameRules(), protocol);
 +                network.ycc.waterdog.pe.PERawPacketData.injectClearWeather(user.getCh().getHandle());
 +            }
 +            // Waterdog end
